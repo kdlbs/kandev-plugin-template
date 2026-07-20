@@ -149,6 +149,29 @@ marks the plugin active. Sideloaded plugins register **disabled/unverified**;
 enable yours in **Settings > Plugins** (the `plugins` feature flag must be on).
 Reinstalling the same version returns 409 — bump `version` in `manifest.yaml`.
 
+## Publish a release
+
+`.github/workflows/release.yml` builds and publishes automatically. Push a tag
+that matches your manifest version and it cross-compiles all platforms, packs
+the tarball, and creates a GitHub Release with the two assets the kandev
+[marketplace](https://github.com/kdlbs/kandev/blob/main/docs/public/plugins-marketplace.md)
+install pipeline expects:
+
+- `<id>-<version>.tar.gz` — the plugin package (with its own internal
+  `checksums.txt` verified on install), and
+- `checksums.txt` — the sha256 of the tarball, pinned by the marketplace index
+  as `package_sha256` for provenance.
+
+```sh
+# bump VERSION in Makefile + version in manifest.yaml first, then:
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow checks out the kandev monorepo as a sibling so the `replace`
+directive resolves (see "Developing against the SDK"); pin a kandev ref in the
+workflow if you need reproducible SDK versions.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). This template is meant to be copied and made your
