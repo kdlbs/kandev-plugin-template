@@ -6,8 +6,10 @@
 #   - <id>-<version>.tar.gz  — the plugin package (contains its own internal
 #                              checksums.txt covering every packaged file, which
 #                              kandev verifies on install).
-#   - checksums.txt          — the sha256 of the tarball itself, a provenance
-#                              digest the marketplace index pins as package_sha256.
+#   - checksums.txt          — the sha256 of the tarball itself. Advisory
+#                              provenance today: the marketplace reserves a
+#                              package_sha256 field but the index builder does
+#                              not populate it yet, so this asset is optional.
 #
 # The build needs a sibling checkout of the kandev monorepo, because go.mod
 # resolves the SDK through `replace github.com/kandev/kandev => ../kandev/apps/backend`

@@ -159,8 +159,9 @@ install pipeline expects:
 
 - `<id>-<version>.tar.gz` — the plugin package (with its own internal
   `checksums.txt` verified on install), and
-- `checksums.txt` — the sha256 of the tarball, pinned by the marketplace index
-  as `package_sha256` for provenance.
+- `checksums.txt` — the sha256 of the tarball (advisory provenance; the catalog
+  reserves a `package_sha256` field for it but the index builder does not
+  populate it yet, so it is optional today).
 
 ```sh
 # bump VERSION in Makefile + version in manifest.yaml first, then:
