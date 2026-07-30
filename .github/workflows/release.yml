@@ -1,20 +1,5 @@
-# Release workflow: on a version tag (v*), cross-compile the plugin for every
-# platform in manifest.yaml, pack it into the versioned tarball, and publish a
-# GitHub Release with the two assets the kandev marketplace install pipeline
-# expects:
-#
-#   - <id>-<version>.tar.gz  — the plugin package (contains its own internal
-#                              checksums.txt covering every packaged file, which
-#                              kandev verifies on install).
-#   - checksums.txt          — the sha256 of the tarball itself. Advisory
-#                              provenance today: the marketplace reserves a
-#                              package_sha256 field but the index builder does
-#                              not populate it yet, so this asset is optional.
-#
-# The build needs a sibling checkout of the kandev monorepo, because go.mod
-# resolves the SDK through `replace github.com/kandev/kandev => ../kandev/apps/backend`
-# (see README "Developing against the SDK"). We check kandev out next to this
-# repo so that relative path holds inside the runner.
+# Create a GitHub Release from every version tag. The package's internal
+# checksums.txt is extracted and uploaded alongside the 5-platform tarball.
 name: release
 
 on:
@@ -34,40 +19,46 @@ jobs:
         with:
           path: plugin
 
-      # The SDK is not a standalone module yet; the plugin builds against a
-      # local checkout of kandev via the `replace` in go.mod. Pin a ref (or a
-      # released tag) if you need reproducible SDK versions.
-      - name: Check out kandev SDK (sibling)
+      - name: Check out kandev SDK
         uses: actions/checkout@v4
         with:
           repository: kdlbs/kandev
           path: kandev
-          # ref: v1.2.3   # optional: pin to a kandev release for reproducibility
+          sparse-checkout: apps/backend
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: plugin/go.mod
+          cache-dependency-path: plugin/go.sum
+
+      - name: Verify release version
+        working-directory: plugin
+        run: |
+          version="$(sed -nE 's/^version: "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' manifest.yaml)"
+          test "$GITHUB_REF_NAME" = "v$version"
+
+      - name: Verify
+        working-directory: plugin
+        run: |
+          test -z "$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
+          make vet
+          make test
 
       - name: Package (all platforms)
         working-directory: plugin
         run: make package
 
-      - name: Compute release checksum
+      - name: Extract package checksums
         working-directory: plugin
         run: |
           pkg="$(ls kandev-plugin-*-*.tar.gz)"
-          sha256sum "$pkg" > checksums.txt
-          echo "PKG=$pkg" >> "$GITHUB_ENV"
-          cat checksums.txt
+          tar -xzf "$pkg" checksums.txt
 
       - name: Publish GitHub Release
-        working-directory: plugin
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            "$PKG" checksums.txt \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "${GITHUB_REF_NAME}" \
-            --generate-notes
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            plugin/kandev-plugin-template-*.tar.gz
+            plugin/checksums.txt
+          generate_release_notes: true

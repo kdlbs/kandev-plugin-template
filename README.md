@@ -151,17 +151,18 @@ Reinstalling the same version returns 409 — bump `version` in `manifest.yaml`.
 
 ## Publish a release
 
-`.github/workflows/release.yml` builds and publishes automatically. Push a tag
-that matches your manifest version and it cross-compiles all platforms, packs
-the tarball, and creates a GitHub Release with the two assets the kandev
+Pull requests run `.github/workflows/ci.yml` (tidy, format, vet, and test) and
+`.github/workflows/build.yml` (host build plus a five-platform package). Push a
+tag that matches the manifest version to run `.github/workflows/release.yml`:
+it repeats verification, cross-compiles all platforms, packs the tarball, and
+creates a GitHub Release with the two assets the kandev
 [marketplace](https://github.com/kdlbs/kandev/blob/main/docs/public/plugins-marketplace.md)
 install pipeline expects:
 
 - `<id>-<version>.tar.gz` — the plugin package (with its own internal
   `checksums.txt` verified on install), and
-- `checksums.txt` — the sha256 of the tarball (advisory provenance; the catalog
-  reserves a `package_sha256` field for it but the index builder does not
-  populate it yet, so it is optional today).
+- `checksums.txt` — the package's internal file checksums, extracted from the
+  tarball for inspection and marketplace tooling.
 
 ```sh
 # bump VERSION in Makefile + version in manifest.yaml first, then:
