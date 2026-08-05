@@ -146,7 +146,8 @@ curl -F package=@kandev-plugin-template-0.1.0.tar.gz \
 kandev verifies `checksums.txt`, validates the manifest, extracts the package,
 spawns the host-matching binary, and — once the go-plugin handshake completes —
 marks the plugin active. Sideloaded plugins register **disabled/unverified**;
-enable yours in **Settings > Plugins** (the `plugins` feature flag must be on).
+enable yours in **Settings > Plugins**. Plugins ship in the base product with
+no feature flag to enable first.
 Reinstalling the same version returns 409 — bump `version` in `manifest.yaml`.
 
 ## Publish a release
