@@ -225,8 +225,18 @@ make package-host   # host platform only — faster local iteration
 
 Both stage `manifest.yaml` + `ui/` alongside the freshly built
 `server/plugin-<goos>-<goarch>[.exe]` binaries, then pack the tree with
-`github.com/kandev/kandev/cmd/plugin-pack` (resolved through this repo's
-`replace` directive), which computes `checksums.txt` and writes the tarball.
+kandev's `cmd/plugin-pack`, which computes `checksums.txt` and writes the
+tarball.
+
+Note the Makefile runs `plugin-pack` with `cd $(KANDEV_SDK) && go run
+./cmd/plugin-pack`, from inside the sibling kandev checkout, rather than as
+`go run github.com/kandev/kandev/cmd/plugin-pack` from here. The second
+spelling resolves plugin-pack's dependencies against *this* module's `go.sum`,
+and plugin-pack reaches much further into the kandev backend than `server/`
+does — so those entries are missing and packaging fails with `missing go.sum
+entry`. Pulling them in would force this template's `go.sum` to track every
+dependency the kandev backend grows. Building the tool where it lives keeps
+`go.sum` scoped to what your plugin actually imports.
 
 ## Install it against a running kandev
 
