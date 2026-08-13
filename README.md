@@ -12,17 +12,31 @@ from scratch:
 - **Native nav item + route** — `ui/bundle.js` adds a sidebar entry that opens
   `/template`, a page rendered natively inside the kandev SPA (not an iframe)
   using the host's own React instance.
+- **A page built from host components** — one `Card` containing a `Popover`
+  (host-positioned, no `getBoundingClientRect` math), a `Progress` bar, a
+  `Table` that swaps to `Empty` when there's nothing to show, and `Kbd` for a
+  keyboard hint. Each part is independent: delete the ones you don't want.
+- **Toasts** — the page's Clear button calls `host.toast.success` and
+  `host.toast.error`. The host mounts the single `<Toaster/>`, so there is
+  nothing to render and it works from anywhere, modals included.
+- **Locale-aware timestamps** — `host.utils.formatRelativeTime` renders each
+  row's "seen" column through `Intl.RelativeTimeFormat`, and `host.utils.cn`
+  merges conditional classes the same way the host components do.
+- **Live theme** — `host.onThemeChange` keeps a readout in the popover current
+  when the user flips light/dark.
 - **Chat toolbar action** — a component registered into the `chat-input-actions`
   slot renders an icon button in the chat composer toolbar, with the current
   `{ sessionId, taskId, taskTitle }` as `slotProps`.
-- **Live WS-driven counter** — a `registerWsHandler("task.created", ...)`
+- **Live WS-driven page** — a `registerWsHandler("task.created", ...)`
   handler updates module state that the page re-renders from, live, with no
   reload.
 - **Backend event handling with Host state** — `OnEvent` counts `task.created`
   deliveries in a persistent counter via the `Host.GetState`/`SetState` round
   trip, so restarts don't reset it.
 - **Backend webhook** — `HandleWebhook` answers the `ping` webhook kandev
-  proxies to the plugin, building its reply from the operator settings.
+  proxies to the plugin, building its reply from the operator settings. Its
+  `access:` is declared explicitly — see
+  [Webhook access](#webhook-access-declare-it) below.
 - **Operator settings (`config_schema`)** — a `greeting` string and a secret
   `api_token`, rendered as a form at **Settings > Plugins > Template Plugin**
   and read by the plugin process via `host.GetConfig(ctx)`. Secret fields are
@@ -43,6 +57,87 @@ Then trim the scaffolding: drop the webhook / event / config blocks in
 `server/plugin.go`, and keep only the `registry.register*` calls in
 `ui/bundle.js` your plugin actually contributes. Update `server/plugin_test.go`
 to cover what remains.
+
+The page in `ui/bundle.js` is deliberately built from independent parts —
+`AboutPopover`, the `Progress` block, `RecentTasksTable`, `EmptyState`, the
+Clear button — so you can delete any of them without unpicking the others.
+Adjust `min_kandev_version` in `manifest.yaml` to match whatever you keep.
+
+## Use the host's React — and the host's recharts
+
+`initialize(registry, host)` hands you `host.React` (and `host.jsx`, an alias
+for `host.React.createElement`). Use it. **Never import or bundle your own
+React**: a second React instance has its own hook dispatcher and context
+registry, so host components rendered inside your tree lose their providers,
+refs break, and `asChild` stops composing.
+
+The same hazard applies to **recharts**, which is why the host exposes
+`ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`,
+`ChartLegendContent` and `ChartStyle` through `host.ui` rather than leaving you
+to install it: recharts resolves its tooltips and legends through its own React
+context and renders them into portals, so a bundled second copy splits exactly
+what the host copy is holding. It costs nothing to use the host's — recharts is
+already a dependency of the app. The same reasoning covers every
+Radix/portal/context-based package. Pure-React libraries (`@tabler/icons-react`,
+say) bundle fine, but this template ships hand-drawn inline SVG so it needs no
+bundler at all.
+
+`host.ui` is much broader than what this template uses — `Accordion*`,
+`Collapsible*`, `Select*`, `Tabs*`, `Sheet*`, `Pagination*`, `ScrollArea`,
+`Skeleton`, `Switch`, `Spinner`, `TooltipProvider`, plus kandev's own
+`PageTopbar`, `Combobox` and `TaskCreateDialog`. Check it before hand-rolling a
+component: the published plugins that hand-rolled progress bars and popovers
+did so only because this template used to stop at `Button`. The authoritative
+list is `PLUGIN_UI` in `apps/web/lib/plugins/host-api.ts`.
+
+## Webhook access: declare it
+
+`manifest.yaml`'s example webhook sets `access:` explicitly:
+
+```yaml
+webhooks:
+  - key: "ping"
+    method: "POST"
+    access: "public"
+```
+
+The field is optional and currently defaults to `public`, but an open kandev PR
+proposes inverting that default to `authenticated`. A manifest that omits it is
+one whose security posture silently changes on a host upgrade; a manifest that
+declares it means the same thing under either default. Choose per webhook:
+
+| `access:`       | Caller                                           | Body limit |
+| --------------- | ------------------------------------------------ | ---------- |
+| `public`        | anonymous — GitHub, Slack, Stripe, any third party delivering to you. Verify the caller yourself (signature header, or a shared secret in a `secret: true` config field). | 4 MiB |
+| `authenticated` | needs a kandev identity (session cookie or PAT) — your own scripts and CI. | 16 MiB |
+
+If you want to call your plugin from your **own** frontend bundle, neither is
+right: declare an `actions:` entry instead. The host authenticates and
+authorizes those and passes a verified resource context to your backend, and
+`host.api.fetch` is documented as MUST NOT target a public webhook path.
+
+## Minimum host version
+
+`manifest.yaml` declares `min_kandev_version: "0.86.0"` — the first release
+carrying the `host.ui` primitives, `host.toast` and `host.utils` that
+`ui/bundle.js` calls. A release host compares it against its own version at
+install time and refuses an older one, so an operator gets a clear error
+instead of a plugin that loads and then breaks on a missing API.
+
+Raise it as you adopt newer host APIs; lower or drop it if you strip the bundle
+back to the pre-0.86 surface (`Button`, `Card*`, `Tooltip*`).
+
+Two caveats worth knowing:
+
+- The check only became load-bearing in 0.86.0. Earlier hosts parsed the field
+  and ignored it, so it can't protect you from a host old enough to have that
+  bug — a reason to declare it, not to skip it.
+- It is **release-only by design**. A host built from a git checkout reports a
+  git-describe version like `v0.87.1-27-g4705f1fd0`, which isn't a release
+  version, so the gate is skipped and the install succeeds whatever floor you
+  declare. A successful sideload onto your dev instance is not evidence that
+  your floor is correct — check it against the kandev history instead
+  (`git merge-base --is-ancestor <commit> <tag>`).
 
 ## How a plugin runs (gRPC subprocess, not HTTP)
 

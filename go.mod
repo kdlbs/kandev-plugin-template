@@ -18,6 +18,7 @@ require (
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
@@ -33,3 +34,10 @@ require (
 // layout this path assumes, and what changes once pkg/pluginsdk ships as its
 // own versioned module.
 replace github.com/kandev/kandev => ../kandev/apps/backend
+
+// `make package` runs cmd/plugin-pack out of the kandev checkout. Declaring it
+// as a tool keeps its transitive requirements in go.mod/go.sum, so packaging
+// keeps working as the kandev side grows dependencies that nothing under
+// server/ imports; without it, `go mod tidy` drops those sums and packaging
+// fails with "missing go.sum entry".
+tool github.com/kandev/kandev/cmd/plugin-pack
