@@ -7,6 +7,18 @@ VERSION := 0.1.0
 STAGE := .build/stage
 PKG_OUT := kandev-plugin-template-$(VERSION).tar.gz
 
+# The sibling kandev checkout the `replace` in go.mod points at (see README,
+# "Developing against the SDK"). The packaging step runs plugin-pack from
+# INSIDE this directory, i.e. in kandev's own module context, rather than as
+# `go run github.com/kandev/kandev/cmd/plugin-pack` from here. Both spellings
+# work, but the second resolves plugin-pack's dependencies against *this*
+# module's go.sum — and plugin-pack imports far more of the kandev backend
+# than server/ does, so those entries are absent and packaging dies with
+# "missing go.sum entry". Adding them would mean this template's go.sum has to
+# track every dependency the kandev backend grows, which `go mod tidy` then
+# fights over. Building it where it lives sidesteps all of that.
+KANDEV_SDK := ../kandev/apps/backend
+
 ## Build the plugin binary for the host platform (development use). kandev
 ## itself always installs from `make package`/`package-host` output, not this.
 build:
@@ -43,7 +55,7 @@ package:
 	GOOS=darwin  GOARCH=amd64 go build -o $(STAGE)/server/plugin-darwin-amd64      ./server
 	GOOS=darwin  GOARCH=arm64 go build -o $(STAGE)/server/plugin-darwin-arm64      ./server
 	GOOS=windows GOARCH=amd64 go build -o $(STAGE)/server/plugin-windows-amd64.exe ./server
-	go run github.com/kandev/kandev/cmd/plugin-pack -dir $(STAGE) -out $(PKG_OUT)
+	cd $(KANDEV_SDK) && go run ./cmd/plugin-pack -dir $(CURDIR)/$(STAGE) -out $(CURDIR)/$(PKG_OUT)
 	rm -rf $(STAGE)
 	@echo "Wrote $(PKG_OUT)"
 
@@ -55,7 +67,7 @@ package-host:
 	cp manifest.yaml $(STAGE)/manifest.yaml
 	cp -r ui $(STAGE)/ui
 	go build -o $(STAGE)/server/plugin-$$(go env GOOS)-$$(go env GOARCH)$$(go env GOEXE) ./server
-	go run github.com/kandev/kandev/cmd/plugin-pack -dir $(STAGE) -out $(PKG_OUT) -platform-only
+	cd $(KANDEV_SDK) && go run ./cmd/plugin-pack -dir $(CURDIR)/$(STAGE) -out $(CURDIR)/$(PKG_OUT) -platform-only
 	rm -rf $(STAGE)
 	@echo "Wrote $(PKG_OUT)"
 

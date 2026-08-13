@@ -15,6 +15,25 @@ description: "Starter template for a kandev native-UI plugin: a nav item + nativ
 author: "your-name-here"
 categories: ["tools"]
 
+# min_kandev_version is the oldest kandev release this plugin will install
+# against. A release host compares it to its own version at install time and
+# refuses the package if it is older, so an operator gets a clear error instead
+# of a plugin that loads and then fails on a missing API.
+#
+# 0.86.0 is the floor for THIS template, not a default to copy blindly: it is
+# the first release carrying the host.ui primitives, host.toast and host.utils
+# that ui/bundle.js below actually calls. Raise it when you start using a newer
+# host API; you can lower or drop it if you strip the bundle back to the
+# pre-0.86 surface (Button, Card*, Tooltip*).
+#
+# Two things worth knowing about the check. It only became load-bearing in
+# 0.86.0 — earlier hosts parsed the field and silently ignored it. And it is
+# release-only by design: a host built from a git checkout reports something
+# like "v0.87.1-27-g4705f1fd0", which is not a release version, so the gate is
+# skipped and the install succeeds whatever you put here. Don't read a
+# successful sideload onto your dev instance as proof the floor is right.
+min_kandev_version: "0.86.0"
+
 # runtime.executables maps each supported platform to the binary kandev
 # spawns as a gRPC subprocess. `make package` cross-compiles all five;
 # `make package-host` builds just the current one. The paths are relative to
@@ -39,10 +58,36 @@ capabilities:
 
 # webhooks kandev proxies to Plugin.HandleWebhook at
 # POST /api/plugins/<id>/webhooks/<key>. Delete this block if unused.
+#
+# Always spell `access` out. It is optional and currently defaults to `public`,
+# but an open kandev PR proposes inverting that default to `authenticated` — so
+# a manifest that omits it is a manifest whose security posture changes under
+# it on a host upgrade. Declaring it is correct under either default.
+#
+# Pick the value deliberately; the two are for different callers:
+#   public         anonymous callers. Correct for a webhook a third party
+#                  delivers to (GitHub, Slack, Stripe) — those senders have no
+#                  kandev identity to present. Your handler owns its own
+#                  verification (signature header, shared secret in a `secret:`
+#                  config field). Body limit is capped at 4 MiB.
+#   authenticated  requires a kandev identity (session cookie or PAT). Correct
+#                  for a webhook only your own scripts or CI call. Raises the
+#                  max_body_bytes ceiling to 16 MiB.
+#
+# This example is `public` because it exists to demonstrate the external
+# delivery path — that is what makes it curl-able from anywhere with no
+# credential, which is exactly why a real public webhook must authenticate its
+# caller itself.
+#
+# If what you actually want is to call your plugin from your OWN frontend
+# bundle, neither value is right: use an `actions:` entry instead. The host
+# authenticates and authorizes those, and host.api.fetch is documented as MUST
+# NOT target a public webhook path.
 webhooks:
   - key: "ping"
     description: "Example inbound webhook; logs the delivery and returns 200."
     method: "POST"
+    access: "public"
 
 # ui.bundle points at your hand-written, no-build ES module frontend half.
 # Remove this section for a backend-only plugin.
