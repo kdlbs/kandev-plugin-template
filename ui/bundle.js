@@ -14,13 +14,14 @@
 //     instance (`host.React`, `host.jsx` == host.React.createElement) plus a
 //     curated design system (`host.ui`), imperative toasts (`host.toast`),
 //     shared helpers (`host.utils`), the live theme (`host.theme` /
-//     `host.onThemeChange`), the app store (`host.store`), and navigation
-//     (`host.navigate`). NEVER import or bundle your own React — that breaks
-//     hook identity across the host tree. The same goes for recharts: use the
-//     `host.ui.Chart*` wrappers, because a second recharts copy splits the
+//     `host.onThemeChange`), provider-neutral context (`host.context`), and
+//     navigation (`host.navigate`). NEVER import or bundle your own React —
+//     that breaks hook identity across the host tree. The same goes for
+//     recharts: use the `host.ui.Chart*` wrappers, because a second copy splits the
 //     context its tooltips and legends resolve through, exactly like React.
-//   - `registry` is where you declare nav items, routes, slot components, and
-//     WS handlers. Every registration is tracked under this plugin's id, so
+//   - `registry` is where you declare nav items, routes, slot components,
+//     providers, task actions, review surfaces, and WS handlers. Every
+//     registration is tracked under this plugin's id, so
 //     the host bulk-unregisters everything when the plugin is disabled.
 //
 // `host.ui` is much broader than the few components used below — Accordion*,

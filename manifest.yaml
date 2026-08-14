@@ -11,7 +11,7 @@ id: "kandev-plugin-template"
 api_version: 1
 version: "0.1.0"
 display_name: "Template Plugin"
-description: "Starter template for a kandev native-UI plugin: a nav item + native route, a chat-toolbar action, a backend tool/event/webhook, and operator settings."
+description: "Starter template for a kandev native-UI plugin: a nav item + native route, a chat-toolbar action, backend event/webhook handling, and operator settings."
 author: "your-name-here"
 categories: ["tools"]
 
@@ -55,6 +55,11 @@ runtime:
 capabilities:
   events: ["task.created"]
   state: true
+
+# Git-provider plugins should opt into recipes/source-control/ as one complete
+# slice. Its provider ownership, actions, reference source, and extra Host
+# capabilities are intentionally absent here so generated plugins do not claim
+# a fake provider or permissions they do not use.
 
 # webhooks kandev proxies to Plugin.HandleWebhook at
 # POST /api/plugins/<id>/webhooks/<key>. Delete this block if unused.
