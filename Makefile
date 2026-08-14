@@ -1,4 +1,5 @@
-.PHONY: build run test fmt vet package package-host clean
+.PHONY: build run test test-backend test-recipes typecheck-recipes audit-recipes \
+	fmt vet package package-host verify-package verify-package-host clean
 
 # When you rename the plugin, update BIN and VERSION to match manifest.yaml's
 # id and version (PKG_OUT is derived from them).
@@ -31,14 +32,25 @@ build:
 run: build
 	./$(BIN)
 
-test:
-	go test ./server/...
+test: test-backend typecheck-recipes test-recipes
+
+test-backend:
+	go test ./server/... ./recipes/source-control/server/...
+
+test-recipes:
+	npm run test:recipes
+
+typecheck-recipes:
+	npm run typecheck:recipes
+
+audit-recipes:
+	npm audit --audit-level=high
 
 fmt:
 	gofmt -l .
 
 vet:
-	go vet ./server/...
+	go vet ./server/... ./recipes/source-control/server/...
 
 ## Cross-compile server/plugin-<goos>-<goarch>[.exe] for every platform in
 ## manifest.yaml's runtime.executables, stage manifest.yaml + ui/ alongside
@@ -70,6 +82,46 @@ package-host:
 	cd $(KANDEV_SDK) && go run ./cmd/plugin-pack -dir $(CURDIR)/$(STAGE) -out $(CURDIR)/$(PKG_OUT) -platform-only
 	rm -rf $(STAGE)
 	@echo "Wrote $(PKG_OUT)"
+
+## Build and validate the all-platform archive: plugin-pack checks the manifest;
+## this additionally verifies checksums, expected binaries, and that opt-in
+## recipe/development files did not leak into the generated starter package.
+verify-package: package
+	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+		tar -xzf "$(PKG_OUT)" -C "$$tmp"; \
+		test -f "$$tmp/manifest.yaml"; \
+		test -f "$$tmp/ui/bundle.js"; \
+		test -f "$$tmp/checksums.txt"; \
+		for executable in \
+			plugin-linux-amd64 plugin-linux-arm64 \
+			plugin-darwin-amd64 plugin-darwin-arm64 \
+			plugin-windows-amd64.exe; do \
+			test -f "$$tmp/server/$$executable"; \
+		done; \
+		test ! -e "$$tmp/recipes"; \
+		test ! -e "$$tmp/package.json"; \
+		if command -v sha256sum >/dev/null 2>&1; then \
+			(cd "$$tmp" && sha256sum -c checksums.txt); \
+		else \
+			(cd "$$tmp" && shasum -a 256 -c checksums.txt); \
+		fi
+
+## Faster equivalent for local/CI host-platform packaging.
+verify-package-host: package-host
+	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+		tar -xzf "$(PKG_OUT)" -C "$$tmp"; \
+		host_executable="plugin-$$(go env GOOS)-$$(go env GOARCH)$$(go env GOEXE)"; \
+		test -f "$$tmp/manifest.yaml"; \
+		test -f "$$tmp/ui/bundle.js"; \
+		test -f "$$tmp/checksums.txt"; \
+		test -f "$$tmp/server/$$host_executable"; \
+		test ! -e "$$tmp/recipes"; \
+		test ! -e "$$tmp/package.json"; \
+		if command -v sha256sum >/dev/null 2>&1; then \
+			(cd "$$tmp" && sha256sum -c checksums.txt); \
+		else \
+			(cd "$$tmp" && shasum -a 256 -c checksums.txt); \
+		fi
 
 clean:
 	rm -rf bin $(STAGE) kandev-plugin-template-*.tar.gz

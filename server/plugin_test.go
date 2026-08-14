@@ -1,5 +1,5 @@
-// Package main tests. Exercises templatePlugin's Plugin methods (OnEvent,
-// InvokeTool, HandleWebhook) via direct calls against a fakeHost — no
+// Package main tests. Exercises templatePlugin's Plugin methods (OnEvent and
+// HandleWebhook) via direct calls against a fakeHost — no
 // go-plugin subprocess needed. This is the fast, hermetic way to test a
 // kandev plugin's backend half; copy the fakeHost pattern for your own tests.
 package main
