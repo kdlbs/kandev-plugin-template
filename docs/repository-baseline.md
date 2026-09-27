@@ -18,6 +18,28 @@ runtime minimum in `manifest.yaml`. This template keeps its existing
 is absent. The source pin is not a runtime release number. Do not guess a new
 minimum while the host API awaits a stable release.
 
+## Go module tidy and dependency rationale
+
+Use Go `1.26.0` with this exact SDK source pin. From the plugin root, run
+`go mod tidy && git diff --exit-code -- go.mod go.sum`. Run it a second time
+with the same Go version and SDK checkout; it must produce no diff.
+
+For this baseline, tidy against SDK commit
+`570600439036e81f8e9e1c63f15c4abce8a6c846` updates the transitive Go modules:
+`golang.org/x/net` 0.56.0 to 0.58.0, `golang.org/x/sys` 0.46.0 to 0.48.0,
+`golang.org/x/text` 0.39.0 to 0.42.0,
+`google.golang.org/genproto/googleapis/rpc` from
+`v0.0.0-20260414002931-afd174a4e478` to
+`v0.0.0-20260526163538-3dc84a4a5aaa`, and `google.golang.org/grpc` 1.82.1 to
+1.83.1. Keep this reproducible tidy diff; do not add discretionary Go module
+upgrades to it. The gRPC change overlaps [open PR #7](https://github.com/kdlbs/kandev-plugin-template/pull/7).
+The `x/net` and `x/text` updates follow security work in [merged PR #3](https://github.com/kdlbs/kandev-plugin-template/pull/3), whose branch also pinned workflow actions. This overlap does not mean this baseline completes or replaces a security review.
+
+These are SDK build dependencies. Their versions do not establish runtime
+compatibility with a Kandev release. Keep the separate minimum-host check at
+the existing `0.86.0` floor and test the built artifact against each supported
+host surface.
+
 The manifest remains API v1. Its explicit `access: "public"` preserves the
 existing webhook behavior. At the pinned host commit, API v1 keeps the legacy
 public default and API v2 defaults to authenticated access. Do not change the
@@ -185,8 +207,8 @@ checks before publication.
 
 ## Local validation commands
 
-Create the sibling Kandev checkout at the source pin before you build. Then run
-these commands from the plugin repository:
+Create the sibling Kandev checkout at the source pin before you build. Use Go
+`1.26.0`, then run these commands from the plugin repository:
 
 ```sh
 npm ci --ignore-scripts

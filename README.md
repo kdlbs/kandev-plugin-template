@@ -253,7 +253,7 @@ serves it directly. Edit the file and repackage — nothing else to run.
 
 ## Build and test
 
-Use Go 1.26 and a Node version allowed by `package.json`. The CI workflows use
+Use Go 1.26.0 and a Node version allowed by `package.json`. The CI workflows use
 Node 24. Install the locked UI test dependencies from the plugin directory.
 
 ```sh
