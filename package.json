@@ -7,12 +7,13 @@
   },
   "scripts": {
     "test:recipes": "vitest run recipes/source-control/ui",
-    "typecheck:recipes": "tsc --project tsconfig.recipes.json --noEmit"
+    "typecheck:recipes": "tsc --project tsconfig.recipes.json --noEmit",
+    "test:ui": "node --test tests/ui-action.test.js"
   },
   "devDependencies": {
     "@kandev/plugin-sdk": "file:../kandev/apps/packages/plugin-sdk",
     "typescript": "5.9.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "overrides": {
     "nanoid": "5.1.16"

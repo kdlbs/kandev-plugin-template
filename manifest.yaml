@@ -64,10 +64,9 @@ capabilities:
 # webhooks kandev proxies to Plugin.HandleWebhook at
 # POST /api/plugins/<id>/webhooks/<key>. Delete this block if unused.
 #
-# Always spell `access` out. It is optional and currently defaults to `public`,
-# but an open kandev PR proposes inverting that default to `authenticated` — so
-# a manifest that omits it is a manifest whose security posture changes under
-# it on a host upgrade. Declaring it is correct under either default.
+# Always spell `access` out. API v1 keeps the legacy `public` default for
+# compatibility. API v2 defaults to `authenticated`. This template remains on
+# API v1 and declares its existing public behavior explicitly.
 #
 # Pick the value deliberately; the two are for different callers:
 #   public         anonymous callers. Correct for a webhook a third party
