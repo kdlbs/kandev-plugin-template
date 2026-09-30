@@ -1,12 +1,13 @@
-.PHONY: build run test test-backend test-recipes typecheck-recipes audit-recipes \
-	fmt vet package package-host verify-package verify-package-host clean
+.PHONY: build run test test-backend test-recipes test-ui test-package-verifier \
+	test-release-version typecheck-recipes audit-recipes check-format fmt vet \
+	package package-host package-file verify-package verify-package-host clean
 
 # When you rename the plugin, update BIN and VERSION to match manifest.yaml's
 # id and version (PKG_OUT is derived from them).
 BIN := bin/kandev-plugin-template
 VERSION := 0.1.0
 STAGE := .build/stage
-PKG_OUT := kandev-plugin-template-$(VERSION).tar.gz
+PKG_OUT := $(notdir $(BIN))-$(VERSION).tar.gz
 
 # The sibling kandev checkout the `replace` in go.mod points at (see README,
 # "Developing against the SDK"). The packaging step runs plugin-pack from
@@ -32,13 +33,22 @@ build:
 run: build
 	./$(BIN)
 
-test: test-backend typecheck-recipes test-recipes
+test: test-backend typecheck-recipes test-recipes test-ui test-package-verifier test-release-version
 
 test-backend:
 	go test ./server/... ./recipes/source-control/server/...
 
 test-recipes:
 	npm run test:recipes
+
+test-ui:
+	npm run test:ui
+
+test-package-verifier:
+	sh scripts/test-verify-package.sh
+
+test-release-version:
+	sh scripts/test-verify-release-version.sh
 
 typecheck-recipes:
 	npm run typecheck:recipes
@@ -48,6 +58,9 @@ audit-recipes:
 
 fmt:
 	gofmt -l .
+
+check-format:
+	@test -z "$$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
 
 vet:
 	go vet ./server/... ./recipes/source-control/server/...
@@ -87,41 +100,24 @@ package-host:
 ## this additionally verifies checksums, expected binaries, and that opt-in
 ## recipe/development files did not leak into the generated starter package.
 verify-package: package
-	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	@set -eu; \
+		tmp="$$(mktemp -d)"; \
+		trap 'rm -rf "$$tmp"' EXIT; \
 		tar -xzf "$(PKG_OUT)" -C "$$tmp"; \
-		test -f "$$tmp/manifest.yaml"; \
-		test -f "$$tmp/ui/bundle.js"; \
-		test -f "$$tmp/checksums.txt"; \
-		for executable in \
-			plugin-linux-amd64 plugin-linux-arm64 \
-			plugin-darwin-amd64 plugin-darwin-arm64 \
-			plugin-windows-amd64.exe; do \
-			test -f "$$tmp/server/$$executable"; \
-		done; \
-		test ! -e "$$tmp/recipes"; \
-		test ! -e "$$tmp/package.json"; \
-		if command -v sha256sum >/dev/null 2>&1; then \
-			(cd "$$tmp" && sha256sum -c checksums.txt); \
-		else \
-			(cd "$$tmp" && shasum -a 256 -c checksums.txt); \
-		fi
+		sh scripts/verify-package.sh "$$tmp" full
 
 ## Faster equivalent for local/CI host-platform packaging.
 verify-package-host: package-host
-	@tmp="$$(mktemp -d)"; trap 'rm -rf "$$tmp"' EXIT; \
+	@set -eu; \
+		tmp="$$(mktemp -d)"; \
+		trap 'rm -rf "$$tmp"' EXIT; \
 		tar -xzf "$(PKG_OUT)" -C "$$tmp"; \
-		host_executable="plugin-$$(go env GOOS)-$$(go env GOARCH)$$(go env GOEXE)"; \
-		test -f "$$tmp/manifest.yaml"; \
-		test -f "$$tmp/ui/bundle.js"; \
-		test -f "$$tmp/checksums.txt"; \
-		test -f "$$tmp/server/$$host_executable"; \
-		test ! -e "$$tmp/recipes"; \
-		test ! -e "$$tmp/package.json"; \
-		if command -v sha256sum >/dev/null 2>&1; then \
-			(cd "$$tmp" && sha256sum -c checksums.txt); \
-		else \
-			(cd "$$tmp" && shasum -a 256 -c checksums.txt); \
-		fi
+		sh scripts/verify-package.sh "$$tmp" host "$$(go env GOOS)-$$(go env GOARCH)"
+
+## Print the archive name without building it. Release automation uses this
+## after it validates the manifest and Makefile versions.
+package-file:
+	@printf '%s\n' "$(PKG_OUT)"
 
 clean:
-	rm -rf bin $(STAGE) kandev-plugin-template-*.tar.gz
+	rm -rf bin $(STAGE) $(notdir $(BIN))-*.tar.gz

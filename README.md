@@ -23,23 +23,22 @@ you can delete what you do not need rather than assemble it from scratch:
   merges conditional classes the same way the host components do.
 - **Live theme** — `host.onThemeChange` keeps a readout in the popover current
   when the user flips light/dark.
-- **Chat toolbar action** — a component registered into the `chat-input-actions`
-  slot renders an icon button in the chat composer toolbar, with the current
-  `{ sessionId, taskId, taskTitle }` as `slotProps`.
+- **Chat toolbar action** — one component registration uses `host.ui.Action`
+  when the host provides it and keeps the legacy button on older supported
+  hosts. The composer passes `{ sessionId, taskId, taskTitle }` as `slotProps`.
 - **Live WS-driven page** — a `registerWsHandler("task.created", ...)`
   handler updates module state that the page re-renders from, live, with no
   reload.
 - **Backend event handling with Host state** — `OnEvent` counts `task.created`
   deliveries in a persistent counter via the `Host.GetState`/`SetState` round
   trip, so restarts don't reset it.
-- **Backend webhook** — `HandleWebhook` answers the `ping` webhook kandev
-  proxies to the plugin, building its reply from the operator settings. Its
-  `access:` is declared explicitly — see
-  [Webhook access](#webhook-access-declare-it) below.
+- **Backend webhook** — `HandleWebhook` logs the `ping` request and returns a
+  greeting from the operator settings. Its access is public and declared in
+  the manifest. See [Webhook access](#webhook-access) before you copy it.
 - **Operator settings (`config_schema`)** — a `greeting` string and a secret
-  `api_token`, rendered as a form at **Settings > Plugins > Template Plugin**
-  and read by the plugin process via `host.GetConfig(ctx)`. Secret fields are
-  vault-stored and masked everywhere outside the plugin process.
+  `api_token`, rendered as a form at **Settings > Plugins > Template Plugin**.
+  The plugin reads `greeting`; `api_token` only demonstrates secret-field
+  handling and is not used by this example.
 
 Source-control providers need several newer hooks that would swamp this default
 starter. The compile-tested [provider-neutral source-control recipe](recipes/source-control/README.md)
@@ -55,7 +54,8 @@ them from `kandev-plugin-template` to your own id (e.g. `kandev-plugin-acme`):
 
 1. `manifest.yaml` — `id`, plus `display_name` / `description` / `author`.
 2. `go.mod` — the `module` line.
-3. `Makefile` — `BIN` and `PKG_OUT` (and `VERSION` to match the manifest).
+3. `Makefile` — `BIN` and `VERSION` to match the manifest. The package name
+   is derived from them.
 4. `ui/bundle.js` — the id passed to `window.registerKandevPlugin(...)`.
 
 Then trim the scaffolding: drop the webhook / event / config blocks in
@@ -73,6 +73,8 @@ The page in `ui/bundle.js` is deliberately built from independent parts —
 `AboutPopover`, the `Progress` block, `RecentTasksTable`, `EmptyState`, the
 Clear button — so you can delete any of them without unpicking the others.
 Adjust `min_kandev_version` in `manifest.yaml` to match whatever you keep.
+The Action recipes and repository conventions are in
+[docs/repository-baseline.md](docs/repository-baseline.md).
 
 ## Use the host's React — and the host's recharts
 
@@ -101,9 +103,13 @@ component: the published plugins that hand-rolled progress bars and popovers
 did so only because this template used to stop at `Button`. The authoritative
 list is `PLUGIN_UI` in `apps/web/lib/plugins/host-api.ts`.
 
-## Webhook access: declare it
+## Webhook access
 
-`manifest.yaml`'s example webhook sets `access:` explicitly:
+The manifest uses `api_version: 1` and sets `access: "public"` explicitly.
+For API v1, an omitted access field keeps the legacy public default. Current
+API v2 uses an authenticated default. Keep the explicit value when you adapt
+the manifest. Read the [pinned authoring contract](https://github.com/kdlbs/kandev/blob/570600439036e81f8e9e1c63f15c4abce8a6c846/docs/public/plugins-authoring.md)
+for the current rules.
 
 ```yaml
 webhooks:
@@ -112,15 +118,15 @@ webhooks:
     access: "public"
 ```
 
-The field is optional and currently defaults to `public`, but an open kandev PR
-proposes inverting that default to `authenticated`. A manifest that omits it is
-one whose security posture silently changes on a host upgrade; a manifest that
-declares it means the same thing under either default. Choose per webhook:
+The `ping` handler in this template does not authenticate the caller. It logs
+the request body and returns a greeting. Add sender verification before you
+use this pattern for a public service. The `api_token` setting is not a
+verification mechanism in this example.
 
 | `access:`       | Caller                                           | Body limit |
 | --------------- | ------------------------------------------------ | ---------- |
-| `public`        | anonymous — GitHub, Slack, Stripe, any third party delivering to you. Verify the caller yourself (signature header, or a shared secret in a `secret: true` config field). | 4 MiB |
-| `authenticated` | needs a kandev identity (session cookie or PAT) — your own scripts and CI. | 16 MiB |
+| `public`        | Anonymous service. Check a provider signature or shared secret in your handler. | 4 MiB |
+| `authenticated` | Kandev session or PAT. Use it for your scripts and CI. | 16 MiB |
 
 If you want to call your plugin from your **own** frontend bundle, neither is
 right: declare an `actions:` entry instead. The host authenticates and
@@ -193,12 +199,21 @@ replace github.com/kandev/kandev => ../kandev/apps/backend
 ```
 
 This assumes your plugin repo is checked out as a **sibling** of the `kandev`
-monorepo:
+monorepo. `.kandev-sdk-ref` records the exact source revision for Go and
+TypeScript contracts:
 
 ```
 some-dir/
 ├── kandev/                   # https://github.com/kdlbs/kandev, Go module at apps/backend/
 └── kandev-plugin-template/   # this repo
+```
+
+Use these commands to create the sibling layout and select the pinned source:
+
+```sh
+git clone https://github.com/kdlbs/kandev.git kandev
+git clone https://github.com/kdlbs/kandev-plugin-template.git kandev-plugin-template
+git -C kandev checkout "$(cat kandev-plugin-template/.kandev-sdk-ref)"
 ```
 
 Note the module root is `kandev/apps/backend`, not the repo root — `kandev` is
@@ -207,11 +222,12 @@ Adjust the `replace` path if your layout differs. Once `pkg/pluginsdk` ships as
 a standalone, versioned module, this repo will drop the `replace` and pin a
 real version instead.
 
-The frontend recipe follows the same temporary source-checkout model through
-`@kandev/plugin-sdk` in `package.json`. It is a runtime-free type dependency:
-the recipe uses `import type`, and the default `ui/bundle.js` remains a
-dependency-free ES module. CI pins both SDK contracts to the same Kandev source
-revision.
+The frontend recipe follows the same source-checkout model through
+`@kandev/plugin-sdk` in `package.json`. It is a type-only dependency. The
+default `ui/bundle.js` remains a dependency-free ES module. CI, package builds,
+and releases read the same `.kandev-sdk-ref` file. This source pin is separate
+from `min_kandev_version` in the runtime manifest. The template keeps its
+`0.86.0` floor because it selects the legacy button when `Action` is absent.
 
 ## Layout
 
@@ -237,16 +253,23 @@ serves it directly. Edit the file and repackage — nothing else to run.
 
 ## Build and test
 
-Install the recipe-only development dependencies once with
-`npm ci --ignore-scripts`; nothing from `node_modules` enters the plugin
-package.
+Use Go 1.26.0 and a Node version allowed by `package.json`. The CI workflows use
+Node 24. Install the locked UI test dependencies from the plugin directory.
 
 ```sh
-make build               # go build -o bin/... ./server/...
-make test                # base + recipe Go/TypeScript tests
-make vet                 # base + recipe Go vet
-make verify-package-host # validate a host-only tarball and checksums
+npm ci --ignore-scripts
+make check-format
+go mod tidy
+git diff --exit-code -- go.mod go.sum
+make vet
+make test
+make audit-recipes
+make build
 ```
+
+`make test` runs backend and recipe tests, recipe type checking, the Action
+fallback test, and negative package and release-version checks. The package
+checks do not replace a disposable-host smoke test.
 
 > Note: bare `go build ./server/...` (no `-o`) fails with `build output
 > "server" already exists and is a directory` — Go's default output name for a
@@ -262,14 +285,16 @@ make package        # cross-compiles linux/darwin (amd64+arm64) + windows/amd64,
 
 make package-host   # host platform only — faster local iteration
 make verify-package # build + validate the five-platform archive
+make verify-package-host # build + validate the host-platform archive
 ```
 
-Both stage `manifest.yaml` + `ui/` alongside the freshly built
-`server/plugin-<goos>-<goarch>[.exe]` binaries, then pack the tree with
-kandev's `cmd/plugin-pack`, which computes `checksums.txt` and writes the
-tarball.
+Both stage `manifest.yaml` and `ui/` beside the freshly built
+`server/plugin-<goos>-<goarch>[.exe]` binaries. Kandev's `cmd/plugin-pack`
+computes `checksums.txt` and writes the archive. The verifier checks every
+manifest-declared binary, the UI bundle, the exact file list, and all checksums.
+It rejects recipe and development files even when their checksums are valid.
 
-Note the Makefile runs `plugin-pack` with `cd $(KANDEV_SDK) && go run
+The Makefile runs `plugin-pack` with `cd $(KANDEV_SDK) && go run
 ./cmd/plugin-pack`, from inside the sibling kandev checkout, rather than as
 `go run github.com/kandev/kandev/cmd/plugin-pack` from here. The second
 spelling resolves plugin-pack's dependencies against *this* module's `go.sum`,
@@ -279,7 +304,11 @@ entry`. Pulling them in would force this template's `go.sum` to track every
 dependency the kandev backend grows. Building the tool where it lives keeps
 `go.sum` scoped to what your plugin actually imports.
 
-## Install it against a running kandev
+## Install it against a running Kandev
+
+The manifest requires Kandev 0.86.0 or later. It packages Linux amd64 and
+arm64, macOS amd64 and arm64, and Windows amd64 binaries. It requests access to
+`task.created` events and plugin-scoped state. The `ping` webhook is public.
 
 Either through the UI (**Settings > Plugins > Install plugin**, URL or file
 upload), or directly:
@@ -289,37 +318,35 @@ curl -F package=@kandev-plugin-template-0.1.0.tar.gz \
   http://localhost:<kandev-port>/api/plugins/install
 ```
 
-kandev verifies `checksums.txt`, validates the manifest, extracts the package,
-spawns the host-matching binary, and — once the go-plugin handshake completes —
-marks the plugin active. Sideloaded plugins register **disabled/unverified**;
-enable yours in **Settings > Plugins** (the `plugins` feature flag must be on).
+Kandev verifies the package checksums, validates the manifest, extracts the
+package, and starts the host-matching binary. An unsigned package is marked
+unsigned in **Settings > Plugins**. Checksums detect file changes against the
+included checksum list and can catch accidental corruption. They do not prove
+who published the package. A
+directory sideload is a different flow: Kandev registers it as disabled and
+does not start it.
 Reinstalling the same version returns 409 — bump `version` in `manifest.yaml`.
 
 ## Publish a release
 
-Pull requests run `.github/workflows/ci.yml` (tidy, format, vet, and test) and
-`.github/workflows/build.yml` (host build plus a five-platform package). Push a
-tag that matches the manifest version to run `.github/workflows/release.yml`:
-it repeats verification, cross-compiles all platforms, packs the tarball, and
-creates a GitHub Release with the two assets the kandev
-[marketplace](https://github.com/kdlbs/kandev/blob/main/docs/public/plugins-marketplace.md)
-install pipeline expects:
+Pull requests run CI, UI and backend tests, and full platform packaging. The
+release workflow supports a manual version bump from `main` and a pushed
+`vX.Y.Z` tag. Both paths run format, vet, test, audit, and package checks before
+GitHub creates a release. Manual releases update the manifest and Makefile,
+then create a commit and matching tag only after those checks pass.
 
-- `<id>-<version>.tar.gz` — the plugin package (with its own internal
-  `checksums.txt` verified on install), and
-- `checksums.txt` — the package's internal file checksums, extracted from the
-  tarball for inspection and marketplace tooling.
+- `kandev-plugin-template-<version>.tar.gz` — the plugin package with its own
+  `checksums.txt`, which Kandev checks during installation.
+- `checksums.txt` — the package's internal file checksums plus the SHA-256
+  checksum of the published package archive.
 
-```sh
-# bump VERSION in Makefile + version in manifest.yaml first, then:
-git tag v0.1.0
-git push origin v0.1.0
-```
+In GitHub Actions, open the release workflow from `main`. Choose a version
+bump. Set `dry_run` to `true` to preview the version without publishing.
 
-The workflows check out the kandev monorepo as a sibling so the local Go and
-TypeScript SDK paths resolve (see "Developing against the SDK"). They pin one
-source revision for reproducible provider contracts; advance that pin
-deliberately and rerun both contract suites when adopting a newer SDK.
+The tag path requires the tag, manifest version, Makefile version, and package
+manifest to match. To change the SDK source pin, select an exact reviewed host
+commit, update `.kandev-sdk-ref`, then run the documented checks. Do not infer
+a runtime release number from that source commit.
 
 ## License
 
