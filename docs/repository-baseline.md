@@ -203,7 +203,8 @@ The release workflow serializes releases without cancelling an active run. A
 manual release validates the candidate package before it commits metadata or
 pushes a tag. A pushed tag must match the manifest, Makefile, and package
 manifest before GitHub creates release assets. Both paths run UI and backend
-checks before publication.
+checks before publication. The published `checksums.txt` contains the package's
+internal file checksums and the SHA-256 checksum of the package archive.
 
 ## Local validation commands
 

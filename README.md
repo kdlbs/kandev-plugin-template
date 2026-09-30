@@ -337,7 +337,8 @@ then create a commit and matching tag only after those checks pass.
 
 - `kandev-plugin-template-<version>.tar.gz` — the plugin package with its own
   `checksums.txt`, which Kandev checks during installation.
-- `checksums.txt` — a copy of the package's internal file checksums.
+- `checksums.txt` — the package's internal file checksums plus the SHA-256
+  checksum of the published package archive.
 
 In GitHub Actions, open the release workflow from `main`. Choose a version
 bump. Set `dry_run` to `true` to preview the version without publishing.
