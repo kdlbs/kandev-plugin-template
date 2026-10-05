@@ -5,7 +5,7 @@
 # When you rename the plugin, update BIN and VERSION to match manifest.yaml's
 # id and version (PKG_OUT is derived from them).
 BIN := bin/kandev-plugin-template
-VERSION := 0.1.0
+VERSION := 0.2.0
 STAGE := .build/stage
 PKG_OUT := $(notdir $(BIN))-$(VERSION).tar.gz
 

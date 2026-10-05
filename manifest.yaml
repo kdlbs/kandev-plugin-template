@@ -9,7 +9,7 @@
 # in sync when you rename.
 id: "kandev-plugin-template"
 api_version: 1
-version: "0.1.0"
+version: "0.2.0"
 display_name: "Template Plugin"
 description: "Starter template for a kandev native-UI plugin: a nav item + native route, a chat-toolbar action, backend event/webhook handling, and operator settings."
 author: "your-name-here"
