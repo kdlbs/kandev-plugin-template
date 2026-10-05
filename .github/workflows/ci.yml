@@ -23,12 +23,21 @@ jobs:
         with:
           path: plugin
 
+      - name: Read pinned Kandev source revision
+        id: sdk
+        working-directory: plugin
+        run: |
+          set -euo pipefail
+          sdk_ref="$(cat .kandev-sdk-ref)"
+          [[ "$sdk_ref" =~ ^[0-9a-f]{40}$ ]]
+          echo "ref=$sdk_ref" >> "$GITHUB_OUTPUT"
+
       - name: Check out kandev SDK contract
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: kdlbs/kandev
           path: kandev
-          ref: f218880ecbaa3d019d65b5d84fca6bdf160eced6
+          ref: ${{ steps.sdk.outputs.ref }}
           sparse-checkout: |
             apps/backend
             apps/packages/plugin-sdk
@@ -58,8 +67,7 @@ jobs:
 
       - name: Check formatting
         working-directory: plugin
-        run: |
-          test -z "$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
+        run: make check-format
 
       - name: Vet
         working-directory: plugin

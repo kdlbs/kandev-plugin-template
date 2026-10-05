@@ -399,7 +399,25 @@ function makeChatToolbarAction(host) {
   return function ChatToolbarAction({ slotProps }) {
     const ctx = slotProps || {};
     const label = ctx.taskTitle || ctx.taskId;
-    const tooltip = label ? `Template — open page (task: ${label})` : "Template — open page";
+    const translate = host.i18n && host.i18n.useTranslation
+      ? host.i18n.useTranslation().t
+      : null;
+    const actionLabel = translate
+      ? translate("openTemplatePage", { defaultValue: "Template — open page" })
+      : "Template — open page";
+    const tooltip = label ? `${actionLabel} (task: ${label})` : actionLabel;
+
+    // Action owns the shell and tooltip on supported hosts. Keep one legacy
+    // path for hosts that predate Action; both paths keep the same registration.
+    if (typeof ui.Action === "function") {
+      return h(ui.Action, {
+        id: "template-chat-action",
+        label: actionLabel,
+        icon: icon(h, STAR_PATH),
+        tooltip,
+        onClick: () => host.navigate("/template"),
+      });
+    }
 
     // A plain Tooltip needs no provider of your own: the app shell mounts one,
     // and host.openModal content gets its own, so this works inside a plugin
