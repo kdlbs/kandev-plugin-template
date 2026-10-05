@@ -13,10 +13,15 @@ which adds `host.ui.Action` and `host.ui.ActionGroup`. The previous source pin,
 
 CI, package builds, and release workflows read the same pin file. Do not use a
 floating branch for an SDK checkout. Keep the source pin separate from the
-runtime minimum in `manifest.yaml`. This template keeps its existing
-`min_kandev_version: "0.86.0"` because it selects a legacy button when Action
-is absent. The source pin is not a runtime release number. Do not guess a new
-minimum while the host API awaits a stable release.
+runtime minimum in `manifest.yaml`. Kandev
+[`v0.97.0`](https://github.com/kdlbs/kandev/releases/tag/v0.97.0), published
+on 2026-10-04 at `e43881c7555372897b57ec51c705f1e05da43c40`, includes PR #3943.
+The official Linux x64 runtime archive was used to validate the template
+package in an isolated host, and `/health` reported `v0.97.0`. The source pin
+is 194 commits older and stays at the API/build contract commit; it is not a
+runtime release number. The existing `min_kandev_version: "0.86.0"` remains
+because the composer selects the legacy button when Action is absent. See PR
+#8 for the exact plugin archive digest and browser results.
 
 ## Go module tidy and dependency rationale
 
@@ -184,6 +189,75 @@ registry.registerComponent("chat-top-bar", makeTaskActions(host));
 The group spacing belongs to ActionGroup on new hosts. Keep legacy spacing in
 the fallback only. These examples stay in documentation; the template does
 not register extra demo actions.
+
+## Stable-host browser smoke
+
+For a release check, use an official stable runtime bundle and verify its
+`/health` version before installing the package. Do not treat the SDK source
+pin or a development build as a stable release. For this baseline, the
+verified host was Kandev `v0.97.0` at
+`e43881c7555372897b57ec51c705f1e05da43c40`; the GitHub release publishes the
+`kandev-linux-x64.tar.gz` asset with SHA-256
+`d15b5ca901fc051dfefbb40a2e0fbec8e92aaf16db8225921f32a6ccdc7d2457`.
+
+Build and verify the host-only package, then upload that exact archive to the
+disposable host:
+
+```sh
+make verify-package-host
+sha256sum kandev-plugin-template-0.1.0.tar.gz
+curl --fail --show-error -F 'package=@kandev-plugin-template-0.1.0.tar.gz;type=application/gzip' \
+  "$KANDEV_URL/api/plugins/install"
+```
+
+Use a task-owned host data directory, database, temporary directory, and port.
+Set `KANDEV_SERVER_HOST=127.0.0.1` when starting the runtime so the disposable
+host listens only on loopback:
+
+```sh
+mkdir -p "$SMOKE_TMP"/home "$SMOKE_TMP"/xdg/data "$SMOKE_TMP"/xdg/config \
+  "$SMOKE_TMP"/xdg/cache "$SMOKE_TMP"/xdg/state "$SMOKE_TMP"/tmp
+env HOME="$SMOKE_TMP/home" \
+  XDG_DATA_HOME="$SMOKE_TMP/xdg/data" \
+  XDG_CONFIG_HOME="$SMOKE_TMP/xdg/config" \
+  XDG_CACHE_HOME="$SMOKE_TMP/xdg/cache" \
+  XDG_STATE_HOME="$SMOKE_TMP/xdg/state" \
+  TMPDIR="$SMOKE_TMP/tmp" \
+  KANDEV_SERVER_HOST=127.0.0.1 \
+  /path/to/release/kandev/bin/kandev run --headless --port 18797
+curl --fail --show-error http://127.0.0.1:18797/health
+```
+
+Create a local Git-only fixture repository and a task with a composer; do not
+use external provider accounts or messages. With Playwright and Chromium
+available from the sibling Kandev checkout, run:
+
+```sh
+KANDEV_CHECKOUT=../kandev \
+KANDEV_URL=http://127.0.0.1:18797 \
+KANDEV_EXPECTED_VERSION=v0.97.0 \
+KANDEV_SMOKE_TASK_PATH=/t/<task-id> \
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome \
+node scripts/stable-host-smoke.mjs
+```
+
+The smoke checks the desktop Action's accessible name, keyboard focus and
+Enter activation, route navigation, disable/re-enable lifecycle, and exactly
+one registration after re-enable. It also exercises Playwright's Pixel 5
+coarse-pointer/touch context, checks the 44-pixel phone target and horizontal
+fit, and taps through to the plugin route. Set
+`KANDEV_SMOKE_SCREENSHOTS` to keep desktop and phone screenshots elsewhere.
+Record the host tag/commit, `/health` version, package archive name and digest,
+matrix results, and any skips with the validation report.
+
+The 2026-10-05 run passed on the official `v0.97.0` runtime. Desktop Chromium
+rendered a 28x28 Action with accessible name `Template — open page`; Enter
+opened `/template`. Disabling the plugin removed the composer action, and
+re-enabling it restored exactly one. Pixel 5 rendered one 44x44 action at
+393x727 with coarse pointer and touch enabled; the page and plugin route had
+no horizontal overflow. The browser reported no page errors. An unauthenticated
+POST to the explicitly public API v1 `ping` webhook returned HTTP 200 and
+`Hello, webhook!`. No external provider account or real message was used.
 
 ## CI and package checks
 
