@@ -210,19 +210,39 @@ curl --fail --show-error -F 'package=@kandev-plugin-template-0.1.0.tar.gz;type=a
   "$KANDEV_URL/api/plugins/install"
 ```
 
+Use a separate source checkout at the exact release commit to compare the
+runtime's served web files with the production release build. The v0.97.0
+release workflow used Node 24, pnpm 9.15.9, the locked `apps` dependencies,
+and the `KANDEV_VERSION` stamp:
+
+```sh
+git clone --depth 1 --branch v0.97.0 https://github.com/kdlbs/kandev.git \
+  "$SMOKE_TMP/source-v0.97.0"
+test "$(git -C "$SMOKE_TMP/source-v0.97.0" rev-parse HEAD)" = \
+  e43881c7555372897b57ec51c705f1e05da43c40
+(cd "$SMOKE_TMP/source-v0.97.0/apps" && corepack pnpm install --frozen-lockfile)
+cd "$SMOKE_TMP/source-v0.97.0"
+KANDEV_VERSION=v0.97.0 VITE_KANDEV_API_PORT= VITE_KANDEV_DEBUG= \
+  corepack pnpm -C apps --filter @kandev/web build
+```
+
 Use a task-owned host data directory, database, temporary directory, and port.
-Set `KANDEV_SERVER_HOST=127.0.0.1` when starting the runtime so the disposable
-host listens only on loopback:
+Start the official runtime from an empty working directory with a clean
+environment, loopback bind, `KANDEV_WEB_DIST_DIR` unset, and no external web
+directory candidates. Verify the host log says `dist_dir: embedded`:
 
 ```sh
 mkdir -p "$SMOKE_TMP"/home "$SMOKE_TMP"/xdg/data "$SMOKE_TMP"/xdg/config \
-  "$SMOKE_TMP"/xdg/cache "$SMOKE_TMP"/xdg/state "$SMOKE_TMP"/tmp
-env HOME="$SMOKE_TMP/home" \
+  "$SMOKE_TMP"/xdg/cache "$SMOKE_TMP"/xdg/state "$SMOKE_TMP"/tmp \
+  "$SMOKE_TMP"/empty-cwd
+cd "$SMOKE_TMP/empty-cwd"
+env -i PATH="$PATH" HOME="$SMOKE_TMP/home" \
   XDG_DATA_HOME="$SMOKE_TMP/xdg/data" \
   XDG_CONFIG_HOME="$SMOKE_TMP/xdg/config" \
   XDG_CACHE_HOME="$SMOKE_TMP/xdg/cache" \
   XDG_STATE_HOME="$SMOKE_TMP/xdg/state" \
   TMPDIR="$SMOKE_TMP/tmp" \
+  LANG=C.UTF-8 \
   KANDEV_SERVER_HOST=127.0.0.1 \
   /path/to/release/kandev/bin/kandev run --headless --port 18797
 curl --fail --show-error http://127.0.0.1:18797/health
@@ -230,10 +250,14 @@ curl --fail --show-error http://127.0.0.1:18797/health
 
 Create a local Git-only fixture repository and a task with a composer; do not
 use external provider accounts or messages. With Playwright and Chromium
-available from the sibling Kandev checkout, run:
+available from the sibling Kandev checkout, return to the plugin template root
+and run:
 
 ```sh
+cd /path/to/kandev-plugin-template
 KANDEV_CHECKOUT=../kandev \
+KANDEV_RELEASE_SOURCE="$SMOKE_TMP/source-v0.97.0" \
+KANDEV_SMOKE_HOST_LOG="$SMOKE_TMP/home/.kandev/logs/backend-logs.log" \
 KANDEV_URL=http://127.0.0.1:18797 \
 KANDEV_EXPECTED_VERSION=v0.97.0 \
 KANDEV_SMOKE_TASK_PATH=/t/<task-id> \
@@ -241,14 +265,24 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome \
 node scripts/stable-host-smoke.mjs
 ```
 
-The smoke checks the desktop Action's accessible name, keyboard focus and
+The smoke compares each non-shell file served by the host with the detached
+release build and checks that the served shell references the same JS/CSS
+assets. It reports a sorted path/content tree SHA-256. It then checks the task
+composer's accessible name, exact 28x28 desktop geometry, keyboard focus and
 Enter activation, route navigation, disable/re-enable lifecycle, and exactly
-one registration after re-enable. It also exercises Playwright's Pixel 5
-coarse-pointer/touch context, checks the 44-pixel phone target and horizontal
-fit, and taps through to the plugin route. Set
-`KANDEV_SMOKE_SCREENSHOTS` to keep desktop and phone screenshots elsewhere.
-Record the host tag/commit, `/health` version, package archive name and digest,
-matrix results, and any skips with the validation report.
+one registration after re-enable.
+
+The smoke also opens Quick Chat's setup composer from the desktop sidebar and
+the Pixel 5 navigation sheet, before starting a session. Kandev v0.97.0 passes
+`taskId: null`, `sessionId: null`, `surface: "quick-chat"`, and the composer
+disabled state into the slot. The template action remains enabled because it
+navigates independently of message submission; the Quick Chat send control
+stays disabled while no profile is selected. Desktop checks the accessible
+name, task-free tooltip, focus, and Enter activation. Pixel 5 checks the settled
+44x44 host-owned target, coarse pointer, touch, horizontal fit, and tap
+navigation. Set `KANDEV_SMOKE_SCREENSHOTS` to keep screenshots elsewhere.
+Record the host tag/commit, embedded source log, `/health` version, asset count
+and tree digest, package archive name and digest, matrix results, and skips.
 
 The 2026-10-05 run passed on the official `v0.97.0` runtime. Desktop Chromium
 rendered a 28x28 Action with accessible name `Template — open page`; Enter
@@ -258,6 +292,16 @@ re-enabling it restored exactly one. Pixel 5 rendered one 44x44 action at
 no horizontal overflow. The browser reported no page errors. An unauthenticated
 POST to the explicitly public API v1 `ping` webhook returned HTTP 200 and
 `Hello, webhook!`. No external provider account or real message was used.
+
+The follow-up confirmed embedded web provenance: the official runtime logged
+`dist_dir: embedded`; all 655 non-shell files (50,987,359 bytes) served over
+HTTP matched the production web build from exact release commit
+`e43881c7555372897b57ec51c705f1e05da43c40`. The sorted content tree SHA-256
+was `91f577be19688e35aa05245d2aabd695b870549e1a6a0aece429927c66b141ff`.
+On desktop and Pixel 5 Quick Chat setup composers, the action had no task or
+session scope. With no profile selected, the send control was disabled while
+the plugin's navigation Action remained enabled; keyboard and touch activation
+both opened `/template`.
 
 ## CI and package checks
 
