@@ -230,8 +230,20 @@ Four real-HTTP polling tests cover transient 503 recovery, permanent 403
 failure, predicate programming errors, and timeout diagnostics; all pass through
 `npm run test:ui` alongside the original two Action tests (six tests total).
 The runner retries bind collisions at most three times with separate HOME
-and log directories. Console errors are recorded separately in the JSON smoke
-report; the existing uncaught-page-error assertion remains a required gate.
+and log directories. The current smoke records and asserts zero console errors
+in addition to zero uncaught page errors. A real local HTTP server occupied the
+first probed port during an additional test:
+
+```sh
+python3 /tmp/template-sdk-migration-evidence/check-bind-race.py
+```
+
+The task-local script substitutes that occupied port for the first probe, then
+uses the normal probe for subsequent attempts. The runner logged a bind
+collision, retried with a fresh HOME/port, and passed all desktop/phone checks,
+with `consoleErrors: []` and exactly two persisted Host-state events. Logs and
+fixtures are retained under `/tmp/template-sdk-migration-evidence/bind-race`.
+
 Packaging agent guidance now distinguishes the checkout directory from its
 revision file. The explicit early release compatibility check is intentional:
 it rejects incompatible SDKs before vet/tests compile, while the package target
