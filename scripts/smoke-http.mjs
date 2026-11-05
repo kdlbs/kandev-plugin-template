@@ -26,7 +26,11 @@ export async function eventually(check, message, { timeoutMs = 20000, intervalMs
       if (!retryable) throw error;
       lastError = error;
     }
-    await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
+    // Do not shorten the interval and then start a new HTTP attempt with only
+    // a few milliseconds left. Finish after the last full polling interval.
+    const remaining = Math.max(0, deadline - Date.now());
+    await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, remaining)));
+    if (remaining <= intervalMs) break;
   }
   assert.fail(lastError ? `${message}: ${lastError.message}` : message);
 }
