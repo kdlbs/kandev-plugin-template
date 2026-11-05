@@ -33,8 +33,10 @@ test('does not hide programming errors in a polling check', async () => {
 });
 
 test('persistent restart failures fail with the last endpoint error', async (t) => {
-  const base = await serve(t, (_req, res) => { res.writeHead(503).end('still restarting'); });
-  await assert.rejects(eventually(async (signal) => (await request(base, '/plugin', { signal })).ok, 'plugin did not recover', { timeoutMs: 500, intervalMs: 1000 }), /plugin did not recover.*503.*still restarting/);
+  let attempts = 0;
+  const base = await serve(t, (_req, res) => { attempts++; res.writeHead(503).end('still restarting'); });
+  await assert.rejects(eventually(async (signal) => (await request(base, '/plugin', { signal })).ok, 'plugin did not recover', { timeoutMs: 1000, intervalMs: 100 }), /plugin did not recover.*503.*still restarting/);
+  assert.ok(attempts >= 2, 'persistent failure must exercise retries');
 });
 
 test('aborts a response that arrives after the polling deadline', async (t) => {

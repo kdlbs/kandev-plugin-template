@@ -25,6 +25,11 @@ class BusyPort(http.server.BaseHTTPRequestHandler):
         pass
 
 
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--exhaust", action="store_true")
@@ -73,15 +78,15 @@ exec {shlex.quote(node)} "$@"
                 target.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(log, target / "bind-race.log")
             if args.exhaust:
-                assert result.returncode != 0, output
-                assert output.count("Host bind collision") == 3, output
-                assert "Host bind failed after three attempts" in output, output
-                assert "already in use" in output or "failed to bind" in output, output
+                require(result.returncode != 0, "occupied ports unexpectedly passed")
+                require(output.count("Host bind collision") == 3, "expected three bind collisions")
+                require("Host bind failed after three attempts" in output, "missing exhausted-retry failure")
+                require("already in use" in output or "failed to bind" in output, "missing final startup diagnostic")
                 print("PASS exhausted collisions retain final startup diagnostics")
             else:
-                assert result.returncode == 0, output
-                assert "Host bind collision" in output, output
-                assert "PASS two task.created events persisted" in output, output
+                require(result.returncode == 0, "minimum-host runner failed")
+                require("Host bind collision" in output, "occupied port did not exercise the retry")
+                require("PASS two task.created events persisted" in output, "full smoke did not complete")
                 print("PASS real bind collision recovers and completes the full host smoke")
         finally:
             server.shutdown()

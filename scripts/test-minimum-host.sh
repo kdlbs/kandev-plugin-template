@@ -7,6 +7,8 @@ cd "$repo_dir"
   echo 'minimum-host runner requires Linux amd64' >&2
   exit 1
 }
+package_path="$repo_dir/$(make --no-print-directory -s package-file)"
+[ -f "$package_path" ] || { echo "Package not found: $package_path; run make verify-package first" >&2; exit 1; }
 smoke_dir=$(mktemp -d)
 host_pid=
 cleanup() {
@@ -78,13 +80,14 @@ done
 }
 grep '"dist_dir": "embedded"' "$host_log"
 KANDEV_SMOKE_URL="$url" \
-  KANDEV_SMOKE_PACKAGE="$repo_dir/$(make --no-print-directory -s package-file)" \
+  KANDEV_SMOKE_PACKAGE="$package_path" \
   KANDEV_SMOKE_SCREENSHOTS="$smoke_dir/screenshots" npm run test:host
 # Inspect only this fixture's database, never the developer's primary instance.
 python3 - "$host_home/.kandev/data/kandev.db" <<'PY'
 import json, sqlite3, sys
 with sqlite3.connect(f'file:{sys.argv[1]}?mode=ro', uri=True) as conn:
     rows = conn.execute("SELECT value_json FROM plugin_state WHERE plugin_id = ? AND scope = 'instance' AND state_key = 'event_count'", ('kandev-plugin-template',)).fetchall()
-assert len(rows) == 1 and json.loads(rows[0][0])['count'] == 2, rows
+if len(rows) != 1 or json.loads(rows[0][0])['count'] != 2:
+    raise SystemExit(f'Unexpected persisted Host state: {rows!r}')
 print('PASS two task.created events persisted through Host GetState/SetState and disable/re-enable')
 PY

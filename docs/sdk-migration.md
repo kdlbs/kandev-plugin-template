@@ -239,14 +239,15 @@ python3 scripts/test-minimum-host-bind-race.py
 python3 scripts/test-minimum-host-bind-race.py --exhaust
 ```
 
-The committed test harness substitutes that occupied port for the first probe, then
-uses the normal probe for subsequent attempts. The runner logged a bind
+In the default mode, the committed harness occupies the first probe and then
+uses the normal probe for subsequent attempts. The `--exhaust` mode keeps all
+three probes occupied. The runner logged a bind
 collision, retried with a fresh HOME/port, and passed all desktop/phone checks,
 with `consoleErrors: []` and exactly two persisted Host-state events. Logs and
 fixtures from the original run are retained under
 `/tmp/template-sdk-migration-evidence/bind-race`. Set `KANDEV_SMOKE_EVIDENCE`
-to retain either reproducible harness run; `--exhaust` verifies all three bind
-failures print their final startup diagnostics.
+to retain either reproducible harness run; `--exhaust` verifies three collisions
+and prints the final attempt's startup diagnostics.
 
 Packaging agent guidance now distinguishes the checkout directory from its
 revision file. The explicit early release compatibility check is intentional:
