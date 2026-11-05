@@ -92,8 +92,8 @@ vulnerabilities. Tidy/lock checks and final `git status --short` produced no
 diff. The resolved graph contains `github.com/kdlbs/kandev/pluginsdk v0.1.0`
 with no replacement and no `github.com/kandev/kandev` backend module.
 
-Final standalone full-archive and disposable-runner results are still being
-recorded while the migration PR is a draft.
+The final disposable-runner result is being recorded while the migration PR
+is a draft; standalone archive results follow below.
 
 ## Packaging remains a separate input
 
@@ -118,6 +118,25 @@ tar -tzf kandev-plugin-template-0.2.0.tar.gz
 Package builds explicitly disable cgo for cross-compilation: the executor's
 inherited cgo setting otherwise invokes an amd64 assembler for arm64. The
 plugin uses the pure-Go SDK transport and needs no C dependency.
+
+Standalone host archive SHA-256:
+`a6c17fcb77171eb6f9121af885ac3c2e902529ea839a806240a0fa709cdc9d92`.
+Standalone full archive SHA-256:
+`a7992ff2339efc1f153d5ef3ea3020676e597c5e24934431859bce014485e835`.
+Both construction/verification targets and the full archive's release-identity
+check passed. The host archive contains four files; the full archive contains
+exactly these eight files, all content files covered by generated checksums:
+
+```text
+manifest.yaml
+server/plugin-darwin-amd64
+server/plugin-darwin-arm64
+server/plugin-linux-amd64
+server/plugin-linux-arm64
+server/plugin-windows-amd64.exe
+ui/bundle.js
+checksums.txt
+```
 
 Current `plugin-pack -platform-only` serializes YAML and retains only the host
 executable declaration. The old verifier incorrectly required the original
@@ -147,6 +166,11 @@ chromium`; execution additionally set
 `LD_LIBRARY_PATH=/nix/store/vj1w29j7kfsvn83z33yb2rpq4ymz24n5-kandev-builtin-playwright-libs/lib`.
 Ubuntu CI uses the documented `--with-deps` command. The smoke test uses the
 locked Playwright `1.64.1` and its Chromium browser.
+
+The first end-to-end runner attempt reproduced a startup race: bootstrap
+`/health` returned HTTP 200 while service initialization was still running.
+The runner now waits for the real plugin API and the embedded-web log marker
+as well as health, before beginning artifact checks.
 
 The default package's declared surfaces are covered: active installation and
 SDK handshake; API v1 public webhook; config-triggered restart with Host config

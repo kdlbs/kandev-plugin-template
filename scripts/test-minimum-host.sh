@@ -21,7 +21,9 @@ cleanup() {
   fi
   rm -rf "$smoke_dir"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 minimum=$(node -p 'require("@kdlbs/plugin-sdk/sdk-release.json").min_kandev_version')
 asset=kandev-linux-x64.tar.gz
 release_url="https://github.com/kdlbs/kandev/releases/download/v$minimum"
@@ -41,7 +43,14 @@ host_pid=$!
 url="http://127.0.0.1:$port"
 ready=false
 for attempt in $(seq 1 120); do
-  if curl --fail --silent "$url/health" > "$smoke_dir/health.json"; then ready=true; break; fi
+  # /health is also exposed by the bootstrap server before services/routes
+  # exist. Wait for the real plugin API and embedded web provenance as well.
+  if curl --fail --silent --max-time 2 "$url/health" > "$smoke_dir/health.json" &&
+     curl --fail --silent --max-time 2 "$url/api/plugins" > /dev/null &&
+     grep -q '"dist_dir": "embedded"' "$smoke_dir/home/.kandev/logs/backend-logs.log" 2>/dev/null; then
+    ready=true
+    break
+  fi
   kill -0 "$host_pid" || { cat "$smoke_dir/launcher.log"; exit 1; }
   sleep 1
 done
