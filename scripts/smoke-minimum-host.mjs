@@ -112,7 +112,8 @@ try {
     await context.close();
   }
   assert.deepEqual(pageErrors, []);
-  passed('no browser page errors');
+  assert.deepEqual(consoleErrors, []);
+  passed('no browser page or console errors');
 } finally {
   await browser.close();
 }
