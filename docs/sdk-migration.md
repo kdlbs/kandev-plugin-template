@@ -218,5 +218,8 @@ Review follow-up: bare `make --dry-run` reproduced a default-target regression
 (it printed only the SDK check). `.DEFAULT_GOAL := build` restores the existing
 bare-make compilation behavior. The browser lifecycle test now stays in one
 loaded document: it asserts the Action disappears on disable, returns exactly
-once on re-enable, and retains the same `performance.timeOrigin`. It does not
-reload to obtain a clean registration set.
+once on re-enable, and retains the same `performance.timeOrigin`. It uses the
+actual operator settings controls and soft browser-history navigation back to
+the task composer, preserving the JavaScript registry. Direct backend disable
+requests alone do not invoke the host browser's unload hook. It does not reload
+to obtain a clean registration set.

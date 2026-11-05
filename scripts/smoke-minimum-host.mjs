@@ -25,6 +25,13 @@ async function eventually(check, message) {
   }
   assert.fail(message);
 }
+async function navigateWithinDocument(page, path) {
+  await page.evaluate((target) => {
+    history.pushState({}, '', target);
+    dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+  }, path);
+  await page.waitForURL((url) => url.pathname === path);
+}
 const health = await json('/health');
 assert.equal(health.version, `v${record.min_kandev_version}`);
 passed(`official host reports ${health.version}`);
@@ -83,17 +90,23 @@ try {
     await page.waitForURL('**/template');
     passed(`${device}: one composer Action, accessible name and ${device === 'phone' ? 'touch' : 'keyboard'} navigation`);
 
-    // Return through SPA history so the composer remains in the same document
-    // while registrations are removed and recreated by live lifecycle events.
-    await page.goBack();
-    await page.waitForURL((url) => url.pathname === `/t/${task.id}`);
-    await action.waitFor();
     const documentOrigin = await page.evaluate(() => performance.timeOrigin);
-    await post(`${plugin}/disable`);
+    // The operator UI owns unloading/loading browser registrations. A direct
+    // backend API call changes the process status but does not run that UI hook.
+    // Soft route changes keep the same JavaScript registry alive throughout.
+    await navigateWithinDocument(page, '/settings/plugins/kandev-plugin-template');
+    await page.getByRole('button', { name: 'Disable', exact: true }).click();
+    await page.getByRole('button', { name: 'Enable', exact: true }).waitFor();
     await eventually(async () => (await json(plugin)).status === 'disabled', 'plugin did not disable');
+    await navigateWithinDocument(page, `/t/${task.id}`);
+    await page.getByTestId('chat-input-area').waitFor();
     await eventually(async () => await action.count() === 0, 'Action did not unregister on disable');
-    await post(`${plugin}/enable`);
+    await navigateWithinDocument(page, '/settings/plugins/kandev-plugin-template');
+    await page.getByRole('button', { name: 'Enable', exact: true }).click();
+    await page.getByRole('button', { name: 'Disable', exact: true }).waitFor();
     await eventually(async () => (await json(plugin)).status === 'active', 'plugin did not re-enable');
+    await navigateWithinDocument(page, `/t/${task.id}`);
+    await page.getByTestId('chat-input-area').waitFor();
     await action.waitFor();
     assert.equal(await action.count(), 1);
     assert.equal(await page.evaluate(() => performance.timeOrigin), documentOrigin, 'lifecycle check reloaded the browser document');
