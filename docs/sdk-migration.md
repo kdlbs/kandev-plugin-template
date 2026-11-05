@@ -248,3 +248,13 @@ Packaging agent guidance now distinguishes the checkout directory from its
 revision file. The explicit early release compatibility check is intentional:
 it rejects incompatible SDKs before vet/tests compile, while the package target
 retains its guard for direct local invocation.
+
+A later incremental review added three more failing-then-passing HTTP cases:
+headers arriving after the polling deadline, a stalled response body, and a
+recovered endpoint whose readiness condition is still false. The polling
+AbortSignal now bounds every HTTP attempt/body read, and a successful false
+predicate clears earlier request errors. Seven HTTP tests plus the original
+two Action tests pass (nine tests total). Exhausted bind retries print the
+last launcher/backend logs before cleanup. The rename checklist includes the
+actual committed UI test fixture; the historical stable-host script is not a
+current tracked source file.

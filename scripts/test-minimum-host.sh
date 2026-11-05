@@ -71,7 +71,11 @@ for bind_attempt in 1 2 3; do
   cat "$launcher_log"
   exit 1
 done
-[ "$ready" = true ] || { echo 'Host bind failed after three attempts' >&2; exit 1; }
+[ "$ready" = true ] || {
+  echo 'Host bind failed after three attempts' >&2
+  cat "$launcher_log" "$host_log" 2>/dev/null || true
+  exit 1
+}
 grep '"dist_dir": "embedded"' "$host_log"
 KANDEV_SMOKE_URL="$url" \
   KANDEV_SMOKE_PACKAGE="$repo_dir/$(make --no-print-directory -s package-file)" \

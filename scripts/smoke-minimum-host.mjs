@@ -40,7 +40,7 @@ passed('host serves the exact packaged UI module');
 assert.equal(await (await request(`${plugin}/webhooks/ping`, { method: 'POST' })).text(), 'Hello, webhook!');
 passed('API v1 explicitly public webhook retains its default greeting');
 await json(plugin, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: { greeting: 'SDK smoke', api_token: 'disposable-fixture' } }) });
-await eventually(async () => (await (await request(`${plugin}/webhooks/ping`, { method: 'POST' })).text()) === 'SDK smoke, webhook!', 'configuration restart did not reach Host.GetConfig');
+await eventually(async (signal) => (await (await request(`${plugin}/webhooks/ping`, { method: 'POST', signal })).text()) === 'SDK smoke, webhook!', 'configuration restart did not reach Host.GetConfig');
 assert.deepEqual((await json(`${plugin}/config`)).config, { greeting: 'SDK smoke', api_token: '********' });
 passed('configuration restart reaches Host.GetConfig and masks the example secret');
 
@@ -90,14 +90,14 @@ try {
     await navigateWithinDocument(page, '/settings/plugins/kandev-plugin-template');
     await page.getByRole('button', { name: 'Disable', exact: true }).click();
     await page.getByRole('button', { name: 'Enable', exact: true }).waitFor();
-    await eventually(async () => (await json(plugin)).status === 'disabled', 'plugin did not disable');
+    await eventually(async (signal) => (await json(plugin, { signal })).status === 'disabled', 'plugin did not disable');
     await navigateWithinDocument(page, `/t/${task.id}`);
     await page.getByTestId('chat-input-area').waitFor();
     await eventually(async () => await action.count() === 0, 'Action did not unregister on disable');
     await navigateWithinDocument(page, '/settings/plugins/kandev-plugin-template');
     await page.getByRole('button', { name: 'Enable', exact: true }).click();
     await page.getByRole('button', { name: 'Disable', exact: true }).waitFor();
-    await eventually(async () => (await json(plugin)).status === 'active', 'plugin did not re-enable');
+    await eventually(async (signal) => (await json(plugin, { signal })).status === 'active', 'plugin did not re-enable');
     await navigateWithinDocument(page, `/t/${task.id}`);
     await page.getByTestId('chat-input-area').waitFor();
     await action.waitFor();

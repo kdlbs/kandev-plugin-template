@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 export async function request(base, path, options = {}) {
-  const response = await fetch(`${base}${path}`, { ...options, signal: AbortSignal.timeout(30000) });
+  const response = await fetch(`${base}${path}`, { ...options, signal: options.signal ?? AbortSignal.timeout(30000) });
   if (!response.ok) {
     throw Object.assign(new Error(`${options.method || 'GET'} ${path}: ${response.status} ${await response.text()}`), { status: response.status });
   }
@@ -10,11 +10,15 @@ export async function request(base, path, options = {}) {
 
 export async function eventually(check, message, { timeoutMs = 20000, intervalMs = 200 } = {}) {
   const deadline = Date.now() + timeoutMs;
+  const signal = AbortSignal.timeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {
-      if (await check()) return;
+      const matched = await check(signal);
+      lastError = undefined;
+      if (matched && !signal.aborted && Date.now() < deadline) return;
     } catch (error) {
+      if (signal.aborted) { lastError = signal.reason; break; }
       // Retry only temporary server/transport failures, not auth failures or
       // programming errors in the check itself.
       const retryable = [502, 503, 504].includes(error?.status) ||
@@ -22,7 +26,7 @@ export async function eventually(check, message, { timeoutMs = 20000, intervalMs
       if (!retryable) throw error;
       lastError = error;
     }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    await new Promise((resolve) => setTimeout(resolve, Math.min(intervalMs, Math.max(0, deadline - Date.now()))));
   }
   assert.fail(lastError ? `${message}: ${lastError.message}` : message);
 }
