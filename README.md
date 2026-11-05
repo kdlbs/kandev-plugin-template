@@ -204,7 +204,7 @@ It verifies the resolved Go SDK, installed frontend SDK, exact lockfile entry,
 minimum host, and supported manifest API version. Build and package targets run
 it automatically. For an upgrade, change both exact SDK pins, regenerate
 `go.sum` with `go mod tidy` and `package-lock.json` with npm, inspect the new
-records, and repeat validation. See the [public migration contract](https://github.com/kdlbs/kandev/blob/f0e2e774cfe2df8a0d15e4c21dea7b48580e38fb/docs/public/plugins-authoring.md#public-sdk-installation-and-migration).
+records, and repeat validation. See the [public migration contract](https://github.com/kdlbs/kandev/blob/f0e2e774cfe2df8a0d15e4c21dea7b48580e38fb/docs/public/plugins-authoring.md#install-and-migrate-sdk-dependencies).
 Packaging still requires the separate backend tooling input described below.
 
 ## Layout
