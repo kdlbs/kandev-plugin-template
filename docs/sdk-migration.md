@@ -213,3 +213,10 @@ The required audit initially reported four advisories in the existing test
 stack. Vitest was patched from `4.1.11` to `4.1.12`, and npm regenerated its
 compatible Vite/source-map transitive patches; audit now reports zero
 vulnerabilities. The new smoke-only Playwright dependency is exactly pinned.
+
+Review follow-up: bare `make --dry-run` reproduced a default-target regression
+(it printed only the SDK check). `.DEFAULT_GOAL := build` restores the existing
+bare-make compilation behavior. The browser lifecycle test now stays in one
+loaded document: it asserts the Action disappears on disable, returns exactly
+once on re-enable, and retains the same `performance.timeOrigin`. It does not
+reload to obtain a clean registration set.

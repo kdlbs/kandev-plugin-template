@@ -83,13 +83,20 @@ try {
     await page.waitForURL('**/template');
     passed(`${device}: one composer Action, accessible name and ${device === 'phone' ? 'touch' : 'keyboard'} navigation`);
 
+    // Return through SPA history so the composer remains in the same document
+    // while registrations are removed and recreated by live lifecycle events.
+    await page.goBack();
+    await page.waitForURL((url) => url.pathname === `/t/${task.id}`);
+    await action.waitFor();
+    const documentOrigin = await page.evaluate(() => performance.timeOrigin);
     await post(`${plugin}/disable`);
     await eventually(async () => (await json(plugin)).status === 'disabled', 'plugin did not disable');
+    await eventually(async () => await action.count() === 0, 'Action did not unregister on disable');
     await post(`${plugin}/enable`);
     await eventually(async () => (await json(plugin)).status === 'active', 'plugin did not re-enable');
-    await page.goto(`${base}/t/${task.id}`, { waitUntil: 'domcontentloaded' });
     await action.waitFor();
     assert.equal(await action.count(), 1);
+    assert.equal(await page.evaluate(() => performance.timeOrigin), documentOrigin, 'lifecycle check reloaded the browser document');
     assert.equal(await (await request(`${plugin}/webhooks/ping`, { method: 'POST' })).text(), 'SDK smoke, webhook!');
     passed(`${device}: disable/re-enable preserves config and exactly one registration`);
     if (process.env.KANDEV_SMOKE_SCREENSHOTS) {

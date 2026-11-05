@@ -49,7 +49,7 @@ package until you copy its declarations and adapters into your plugin.
 
 ## Make it yours
 
-The plugin **id** appears in four places that must stay in sync. Rename all of
+The plugin **id** appears in the runtime files and smoke fixtures. Rename all of
 them from `kandev-plugin-template` to your own id (e.g. `kandev-plugin-acme`):
 
 1. `manifest.yaml` — `id`, plus `display_name` / `description` / `author`.
@@ -57,6 +57,8 @@ them from `kandev-plugin-template` to your own id (e.g. `kandev-plugin-acme`):
 3. `Makefile` — `BIN` and `VERSION` to match the manifest. The package name
    is derived from them.
 4. `ui/bundle.js` — the id passed to `window.registerKandevPlugin(...)`.
+5. `scripts/smoke-minimum-host.mjs` and `scripts/test-minimum-host.sh` — plugin
+   API/state fixture ids; align browser expectations when customizing the UI.
 
 Then trim the scaffolding: drop the webhook / event / config blocks in
 `manifest.yaml` you don't use, delete the matching handlers in

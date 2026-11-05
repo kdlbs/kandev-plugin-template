@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := build
+
 .PHONY: build run test test-backend test-recipes test-ui test-package-verifier \
 	test-release-version typecheck-recipes audit-recipes check-format fmt vet \
 	sdk-check package package-host package-file verify-package verify-package-host clean
