@@ -92,8 +92,10 @@ vulnerabilities. Tidy/lock checks and final `git status --short` produced no
 diff. The resolved graph contains `github.com/kdlbs/kandev/pluginsdk v0.1.0`
 with no replacement and no `github.com/kandev/kandev` backend module.
 
-The final disposable-runner result is being recorded while the migration PR
-is a draft; standalone archive results follow below.
+Standalone host/full archive verification and the final disposable runner also
+passed. The smoke runner fix is commit
+`e1db7846484b3739295a1f634330df0ea1df7915`; it changes only test readiness and
+signal cleanup, with no production source or artifact changes.
 
 ## Packaging remains a separate input
 
@@ -182,6 +184,17 @@ read-only query of the disposable fixture database verifies exactly two
 `task.created` deliveries persisted through Host `GetState`/`SetState` and
 survived disable/re-enable. No task agent, external provider account, or real
 message is used.
+
+The final runner exited zero against the full standalone archive identified
+above. It printed all 14 browser/backend checks and
+`PASS two task.created events persisted through Host GetState/SetState and disable/re-enable`.
+The task-local evidence is under
+`/tmp/template-sdk-migration-evidence/final-host-smoke` (launcher/backend logs,
+health response, isolated database, and desktop/phone screenshots). The
+standalone test log is
+`/tmp/template-sdk-migration-evidence/standalone-validation.log`.
+These task-local paths are diagnostic artifacts; the commands above and the
+committed runner reproduce the checks in CI.
 
 The source-control recipe stays outside this package. Its actual Go tests,
 14 TypeScript tests, and typecheck run; installed provider-specific Review,
