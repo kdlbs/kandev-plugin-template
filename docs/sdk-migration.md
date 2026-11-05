@@ -223,3 +223,16 @@ actual operator settings controls and soft browser-history navigation back to
 the task composer, preserving the JavaScript registry. Direct backend disable
 requests alone do not invoke the host browser's unload hook. It does not reload
 to obtain a clean registration set.
+
+Further review validation adds two package-verifier negatives for nested
+`runtime`/`executables` fields; both malformed manifest shapes are rejected.
+Four real-HTTP polling tests cover transient 503 recovery, permanent 403
+failure, predicate programming errors, and timeout diagnostics; all pass through
+`npm run test:ui` alongside the original two Action tests (six tests total).
+The runner retries bind collisions at most three times with separate HOME
+and log directories. Console errors are recorded separately in the JSON smoke
+report; the existing uncaught-page-error assertion remains a required gate.
+Packaging agent guidance now distinguishes the checkout directory from its
+revision file. The explicit early release compatibility check is intentional:
+it rejects incompatible SDKs before vet/tests compile, while the package target
+retains its guard for direct local invocation.

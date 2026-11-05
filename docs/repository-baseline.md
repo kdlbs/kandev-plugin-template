@@ -22,9 +22,8 @@ packaging setup; the plugin module never imports the backend graph.
 
 The following Action guidance and stable-host results describe the prior
 source-pinned baseline (PR #8). The old `0.86.0` minimum and `v0.97.0` smoke
-results do not establish compatibility for current SDK builds. The historical
-smoke script referenced below was not committed in that baseline. Use the
-current migration evidence and its commands for verification.
+results do not establish compatibility for current SDK builds. Use the current
+migration evidence and its commands for verification.
 
 ## Action ownership and supported slots
 

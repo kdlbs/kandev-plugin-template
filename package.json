@@ -8,7 +8,7 @@
   "scripts": {
     "test:recipes": "vitest run recipes/source-control/ui",
     "typecheck:recipes": "tsc --project tsconfig.recipes.json --noEmit",
-    "test:ui": "node --test tests/ui-action.test.js",
+    "test:ui": "node --test tests/ui-action.test.js tests/smoke-http.test.js",
     "test:host": "node scripts/smoke-minimum-host.mjs"
   },
   "devDependencies": {

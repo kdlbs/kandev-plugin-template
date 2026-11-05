@@ -24,11 +24,13 @@ make sdk-check check-format vet test audit-recipes build
 ```
 
 `make test` includes real backend/recipe tests, recipe type checking, UI Action
-and fallback tests, package-verifier negatives, and release-version negatives.
+and fallback tests, HTTP restart-polling checks, package-verifier negatives,
+and release-version negatives.
 Verify standalone dependency resolution without sibling SDK sources.
 
 Packaging is separate: `plugin-pack` is backend-owned. Prepare the README's
-checkout at `.kandev-tooling-ref` with `apps/backend` and root `pluginsdk`, then
+checkout in `.build/kandev-tooling`, select the revision from
+`.kandev-tooling-ref`, and include `apps/backend` and root `pluginsdk`, then
 run `make verify-package-host` and `make verify-package`. `KANDEV_TOOLING`
 selects its backend directory. Do not claim checkout-free packaging. Inspect
 archive contents/checksums and smoke-test the artifact in a disposable host at

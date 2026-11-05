@@ -140,6 +140,20 @@ printf 'unexpected\n' > "$test_dir/unexpected-file/extra.txt"
 write_checksums "$test_dir/unexpected-file"
 expect_failure 'a checksummed unexpected file' "$test_dir/unexpected-file"
 
+copy_fixture nested-runtime
+awk 'BEGIN { print "wrapper:" } { print "  " $0 }' "$test_dir/valid/manifest.yaml" > "$test_dir/nested-runtime/manifest.yaml"
+write_checksums "$test_dir/nested-runtime"
+expect_failure 'runtime nested below another field' "$test_dir/nested-runtime"
+
+copy_fixture nested-executables
+awk '
+  $0 == "  executables:" { print "  wrapper:"; print "    executables:"; next }
+  /^    / { print "  " $0; next }
+  { print }
+' "$test_dir/valid/manifest.yaml" > "$test_dir/nested-executables/manifest.yaml"
+write_checksums "$test_dir/nested-executables"
+expect_failure 'executables nested below another runtime field' "$test_dir/nested-executables"
+
 copy_fixture wrong-host-platform
 expect_failure 'a host platform missing from the manifest' "$test_dir/wrong-host-platform" host freebsd-amd64
 

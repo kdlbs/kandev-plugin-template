@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile, mkdir } from 'node:fs/promises';
 import { chromium, devices } from 'playwright';
+import { eventually, request as smokeRequest } from './smoke-http.mjs';
 
 const base = process.env.KANDEV_SMOKE_URL;
 assert.ok(base, 'Set KANDEV_SMOKE_URL to a disposable host');
@@ -10,21 +11,9 @@ const record = JSON.parse(await readFile(new URL('../node_modules/@kdlbs/plugin-
 const plugin = '/api/plugins/kandev-plugin-template';
 const checks = [];
 const passed = (label) => { checks.push(label); console.log(`PASS ${label}`); };
-async function request(path, options = {}) {
-  const response = await fetch(`${base}${path}`, { ...options, signal: AbortSignal.timeout(30000) });
-  assert.ok(response.ok, `${options.method || 'GET'} ${path}: ${response.status} ${await response.clone().text()}`);
-  return response;
-}
+const request = (path, options) => smokeRequest(base, path, options);
 const json = async (path, options) => (await request(path, options)).json();
 const post = (path, body) => json(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-async function eventually(check, message) {
-  const deadline = Date.now() + 20000;
-  while (Date.now() < deadline) {
-    if (await check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
-  assert.fail(message);
-}
 async function navigateWithinDocument(page, path) {
   await page.evaluate((target) => {
     history.pushState({}, '', target);
@@ -57,11 +46,15 @@ passed('configuration restart reaches Host.GetConfig and masks the example secre
 
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined });
 const pageErrors = [];
+const consoleErrors = [];
 try {
   for (const device of ['desktop', 'phone']) {
     const context = await browser.newContext(device === 'phone' ? devices['Pixel 5'] : { viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
     page.on('pageerror', (error) => pageErrors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push({ device, text: message.text() });
+    });
     await page.goto(`${base}/template`, { waitUntil: 'domcontentloaded' });
     await page.getByText('Template plugin', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'About this page' }).click();
@@ -123,4 +116,4 @@ try {
 } finally {
   await browser.close();
 }
-console.log(JSON.stringify({ host: health.version, sdk: record.sdk_version, checks }, null, 2));
+console.log(JSON.stringify({ host: health.version, sdk: record.sdk_version, checks, consoleErrors }, null, 2));

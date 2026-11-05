@@ -21,15 +21,24 @@ done
 
 # Accept both source YAML and plugin-pack's serialized host-only manifest.
 manifest_executables=$(awk '
-	$1 == "runtime:" { in_runtime = 1; next }
-	in_runtime && $1 == "executables:" {
-		in_executables = 1
-		map_indent = match($0, /[^ ]/) - 1
+	/^runtime:[[:space:]]*$/ { in_runtime = 1; child_indent = 0; next }
+	/^[[:space:]]*($|#)/ { next }
+	in_runtime && !in_executables {
+		indent = match($0, /[^ ]/) - 1
+		if (indent == 0) { in_runtime = 0; next }
+		if (child_indent == 0) child_indent = indent
+		if (indent == child_indent && $1 == "executables:" && NF == 1) {
+			in_executables = 1
+			map_indent = indent
+			entry_indent = 0
+		}
 		next
 	}
-	in_executables && /^[[:space:]]*($|#)/ { next }
-	in_executables && match($0, /[^ ]/) - 1 <= map_indent { exit }
-	in_executables && $1 ~ /^[[:alnum:]_-]+:$/ && NF == 2 {
+	in_executables {
+		indent = match($0, /[^ ]/) - 1
+		if (indent <= map_indent) exit
+		if (entry_indent == 0) entry_indent = indent
+		if (indent != entry_indent || $1 !~ /^[[:alnum:]_-]+:$/ || NF != 2) next
 		platform = $1
 		sub(/:$/, "", platform)
 		path = $2
