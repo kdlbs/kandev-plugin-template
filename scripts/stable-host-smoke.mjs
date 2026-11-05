@@ -1,12 +1,12 @@
-// Browser smoke for an installed template package on a disposable Kandev host.
-// Playwright comes from the sibling Kandev checkout; this template keeps its
-// default JavaScript toolchain free of a second browser-test dependency.
+// Historical v0.97.0 browser/asset provenance smoke for an older installed package.
+// Current SDK builds require the installed SDK floor; use test-minimum-host.sh.
+// Playwright resolves from this repository's locked test dependencies.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, readdir } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
+import { chromium, devices } from "playwright";
 
 const baseURL = process.env.KANDEV_URL ?? "http://127.0.0.1:18797";
 const taskPath = process.env.KANDEV_SMOKE_TASK_PATH;
@@ -37,12 +37,6 @@ assert.equal(releaseCommit, expectedReleaseCommit, "release source is the exact 
 execFileSync("git", ["-C", releaseRoot, "diff", "--quiet"]);
 execFileSync("git", ["-C", releaseRoot, "diff", "--cached", "--quiet"]);
 const releaseWebDist = resolve(releaseRoot, "apps/web/dist");
-
-const require = createRequire(import.meta.url);
-const kandevRoot = resolve(process.env.KANDEV_CHECKOUT ?? "../kandev");
-const hostWeb = resolve(kandevRoot, "apps/web");
-const testPackage = require.resolve("@playwright/test", { paths: [hostWeb] });
-const { chromium, devices } = require(require.resolve("playwright", { paths: [dirname(testPackage)] }));
 
 const healthResponse = await fetch(`${baseURL}/health`);
 assert.equal(healthResponse.status, 200, "host health endpoint responds");

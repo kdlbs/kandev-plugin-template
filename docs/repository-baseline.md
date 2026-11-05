@@ -224,13 +224,11 @@ curl --fail --show-error http://127.0.0.1:18797/health
 ```
 
 Create a local Git-only fixture repository and a task with a composer; do not
-use external provider accounts or messages. With Playwright and Chromium
-available from the sibling Kandev checkout, return to the plugin template root
-and run:
+use external provider accounts or messages. With the locked Playwright dependency installed here and Chromium available,
+return to the plugin template root and run:
 
 ```sh
 cd /path/to/kandev-plugin-template
-KANDEV_CHECKOUT=../kandev \
 KANDEV_RELEASE_SOURCE="$SMOKE_TMP/source-v0.97.0" \
 KANDEV_SMOKE_HOST_LOG="$SMOKE_TMP/home/.kandev/logs/backend-logs.log" \
 KANDEV_URL=http://127.0.0.1:18797 \

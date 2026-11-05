@@ -57,8 +57,9 @@ them from `kandev-plugin-template` to your own id (e.g. `kandev-plugin-acme`):
 3. `Makefile` — `BIN` and `VERSION` to match the manifest. The package name
    is derived from them.
 4. `ui/bundle.js` — the id passed to `window.registerKandevPlugin(...)`.
-5. `tests/ui-action.test.js`, `scripts/smoke-minimum-host.mjs`, and
-   `scripts/test-minimum-host.sh` — plugin API/state fixture ids; align browser
+5. `tests/ui-action.test.js`, `scripts/smoke-minimum-host.mjs`,
+   `scripts/test-minimum-host.sh`, and the historical
+   `scripts/stable-host-smoke.mjs` — plugin API/state fixture ids; align browser
    expectations when customizing the UI.
 
 Then trim the scaffolding: drop the webhook / event / config blocks in

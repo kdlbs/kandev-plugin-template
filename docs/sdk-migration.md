@@ -259,6 +259,8 @@ recovered endpoint whose readiness condition is still false. The polling
 AbortSignal now bounds every HTTP attempt/body read, and a successful false
 predicate clears earlier request errors. Seven HTTP tests plus the original
 two Action tests pass (nine tests total). Exhausted bind retries print the
-last launcher/backend logs before cleanup. The rename checklist includes the
-actual committed UI test fixture; the historical stable-host script is not a
-current tracked source file.
+last launcher/backend logs before cleanup. The rename checklist covers the committed UI test fixture and both browser
+smoke variants. The older `stable-host-smoke.mjs` remains a historical v0.97.0
+asset-provenance check and now resolves Playwright from this repository's lock
+instead of a sibling checkout. It does not certify current SDK compatibility
+and was not run against the migrated artifact.
