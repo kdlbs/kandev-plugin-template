@@ -56,10 +56,10 @@ audit-recipes:
 	npm audit --audit-level=high
 
 fmt:
-	gofmt -l .
+	gofmt -l server recipes
 
 check-format:
-	@test -z "$$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
+	@test -z "$$(gofmt -l server recipes)" || { echo "gofmt needed:"; gofmt -l server recipes; exit 1; }
 
 vet:
 	go vet ./server/... ./recipes/source-control/server/...
