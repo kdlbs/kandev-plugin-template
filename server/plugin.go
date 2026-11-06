@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/kandev/kandev/pkg/pluginsdk"
+	"github.com/kdlbs/kandev/pluginsdk"
 )
 
 // eventCountStateKey is the Host state key this template uses to demonstrate

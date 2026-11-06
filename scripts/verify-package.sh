@@ -19,11 +19,26 @@ for required in manifest.yaml ui/bundle.js checksums.txt; do
 	[ -f "$package_dir/$required" ] || fail "missing required file: $required"
 done
 
+# Accept both source YAML and plugin-pack's serialized host-only manifest.
 manifest_executables=$(awk '
-	$0 == "runtime:" { in_runtime = 1; next }
-	in_runtime && $0 == "  executables:" { in_executables = 1; next }
-	in_executables && $0 !~ /^    / { exit }
-	in_executables && /^    [[:alnum:]_-]+: "[^\"]+"$/ {
+	/^runtime:[[:space:]]*$/ { in_runtime = 1; child_indent = 0; next }
+	/^[[:space:]]*($|#)/ { next }
+	in_runtime && !in_executables {
+		indent = match($0, /[^ ]/) - 1
+		if (indent == 0) { in_runtime = 0; next }
+		if (child_indent == 0) child_indent = indent
+		if (indent == child_indent && $1 == "executables:" && NF == 1) {
+			in_executables = 1
+			map_indent = indent
+			entry_indent = 0
+		}
+		next
+	}
+	in_executables {
+		indent = match($0, /[^ ]/) - 1
+		if (indent <= map_indent) exit
+		if (entry_indent == 0) entry_indent = indent
+		if (indent != entry_indent || $1 !~ /^[[:alnum:]_-]+:$/ || NF != 2) next
 		platform = $1
 		sub(/:$/, "", platform)
 		path = $2
@@ -37,16 +52,19 @@ expected_executables=$(printf '%s\n' \
 	'linux-amd64 server/plugin-linux-amd64' \
 	'linux-arm64 server/plugin-linux-arm64' \
 	'windows-amd64 server/plugin-windows-amd64.exe' | LC_ALL=C sort)
-[ "$manifest_executables" = "$expected_executables" ] || fail 'manifest runtime.executables does not match the supported platform set'
 
 case "$mode" in
 	full)
+		[ "$manifest_executables" = "$expected_executables" ] || fail 'manifest runtime.executables does not match the supported platform set'
 		executable_paths=$(printf '%s\n' "$manifest_executables" | awk '{ print $2 }')
 		;;
 	host)
 		[ -n "$host_platform" ] || fail 'host mode requires a platform name'
 		executable_paths=$(printf '%s\n' "$manifest_executables" | awk -v platform="$host_platform" '$1 == platform { print $2 }')
 		[ -n "$executable_paths" ] || fail "host platform is not declared: $host_platform"
+		expected_host=$(printf '%s\n' "$expected_executables" | awk -v platform="$host_platform" '$1 == platform')
+		[ -n "$expected_host" ] || fail "unsupported host platform: $host_platform"
+		[ "$manifest_executables" = "$expected_host" ] || [ "$manifest_executables" = "$expected_executables" ] || fail 'unexpected host manifest executables'
 		;;
 	*)
 		fail "unknown verification mode: $mode"

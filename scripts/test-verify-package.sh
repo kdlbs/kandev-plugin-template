@@ -82,6 +82,26 @@ done
 write_checksums "$host_fixture"
 sh "$verify_script" "$host_fixture" host "$host_platform" >/dev/null
 
+# Current plugin-pack -platform-only rewrites the YAML with four-space map
+# indentation, unquoted executable paths, and only the host declaration.
+copy_fixture host-serialized
+serialized=$test_dir/host-serialized
+rm -rf "$serialized/server"
+mkdir "$serialized/server"
+cp "$host_fixture/$host_executable" "$serialized/$host_executable"
+cat > "$serialized/manifest.yaml" <<EOF
+api_version: 1
+runtime:
+    type: binary
+    executables:
+        $host_platform: $host_executable
+min_kandev_version: 0.99.0
+EOF
+write_checksums "$serialized"
+sh "$verify_script" "$serialized" host "$host_platform" >/dev/null
+expect_failure 'host-only manifest in a full archive' "$serialized" full
+expect_failure 'serialized manifest with a different host' "$serialized" host freebsd-amd64
+
 for required in manifest.yaml ui/bundle.js \
 	server/plugin-linux-amd64 server/plugin-linux-arm64 \
 	server/plugin-darwin-amd64 server/plugin-darwin-arm64 \
@@ -119,6 +139,20 @@ copy_fixture unexpected-file
 printf 'unexpected\n' > "$test_dir/unexpected-file/extra.txt"
 write_checksums "$test_dir/unexpected-file"
 expect_failure 'a checksummed unexpected file' "$test_dir/unexpected-file"
+
+copy_fixture nested-runtime
+awk 'BEGIN { print "wrapper:" } { print "  " $0 }' "$test_dir/valid/manifest.yaml" > "$test_dir/nested-runtime/manifest.yaml"
+write_checksums "$test_dir/nested-runtime"
+expect_failure 'runtime nested below another field' "$test_dir/nested-runtime"
+
+copy_fixture nested-executables
+awk '
+  $0 == "  executables:" { print "  wrapper:"; print "    executables:"; next }
+  /^    / { print "  " $0; next }
+  { print }
+' "$test_dir/valid/manifest.yaml" > "$test_dir/nested-executables/manifest.yaml"
+write_checksums "$test_dir/nested-executables"
+expect_failure 'executables nested below another runtime field' "$test_dir/nested-executables"
 
 copy_fixture wrong-host-platform
 expect_failure 'a host platform missing from the manifest' "$test_dir/wrong-host-platform" host freebsd-amd64

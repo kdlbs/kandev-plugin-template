@@ -21,28 +21,41 @@ jobs:
         with:
           path: plugin
 
-      - name: Read pinned Kandev source revision
-        id: sdk
+      - name: Read pinned packaging-tool revision
+        id: tooling
         working-directory: plugin
         run: |
           set -euo pipefail
-          sdk_ref="$(cat .kandev-sdk-ref)"
-          [[ "$sdk_ref" =~ ^[0-9a-f]{40}$ ]]
-          echo "ref=$sdk_ref" >> "$GITHUB_OUTPUT"
+          tooling_ref="$(cat .kandev-tooling-ref)"
+          [[ "$tooling_ref" =~ ^[0-9a-f]{40}$ ]]
+          echo "ref=$tooling_ref" >> "$GITHUB_OUTPUT"
 
-      - name: Check out kandev SDK contract
+      - name: Check out packaging tools
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           repository: kdlbs/kandev
-          path: kandev
-          ref: ${{ steps.sdk.outputs.ref }}
-          sparse-checkout: apps/backend
+          path: plugin/.build/kandev-tooling
+          ref: ${{ steps.tooling.outputs.ref }}
+          sparse-checkout: |
+            apps/backend
+            pluginsdk
 
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: plugin/go.mod
           cache-dependency-path: plugin/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: plugin/package-lock.json
+
+      - name: Install locked SDK dependencies
+        working-directory: plugin
+        run: npm ci --ignore-scripts
 
       - name: Build host binary
         working-directory: plugin
@@ -51,3 +64,11 @@ jobs:
       - name: Package and validate all supported platforms
         working-directory: plugin
         run: make verify-package
+
+      - name: Install smoke-test browser
+        working-directory: plugin
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke package on the published SDK minimum host
+        working-directory: plugin
+        run: sh scripts/test-minimum-host.sh

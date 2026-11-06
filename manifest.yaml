@@ -20,19 +20,10 @@ categories: ["tools"]
 # refuses the package if it is older, so an operator gets a clear error instead
 # of a plugin that loads and then fails on a missing API.
 #
-# 0.86.0 is the floor for THIS template, not a default to copy blindly: it is
-# the first release carrying the host.ui primitives, host.toast and host.utils
-# that ui/bundle.js below actually calls. Raise it when you start using a newer
-# host API; you can lower or drop it if you strip the bundle back to the
-# pre-0.86 surface (Button, Card*, Tooltip*).
-#
-# Two things worth knowing about the check. It only became load-bearing in
-# 0.86.0 — earlier hosts parsed the field and silently ignored it. And it is
-# release-only by design: a host built from a git checkout reports something
-# like "v0.87.1-27-g4705f1fd0", which is not a release version, so the gate is
-# skipped and the install succeeds whatever you put here. Don't read a
-# successful sideload onto your dev instance as proof the floor is right.
-min_kandev_version: "0.86.0"
+# Both installed SDK 0.1.0 release records declare the SDK-wide floor 0.99.0.
+# Keep at least this minimum even when using only a subset of SDK features.
+# The SDK version, plugin version, and manifest API version are independent.
+min_kandev_version: "0.99.0"
 
 # runtime.executables maps each supported platform to the binary kandev
 # spawns as a gRPC subprocess. `make package` cross-compiles all five;

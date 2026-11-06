@@ -4,51 +4,26 @@ This template carries the reviewed repository patterns for Kandev plugins.
 Use these patterns when you update a plugin repository. Keep each plugin's
 existing identity, settings, permissions, provider behavior, and translations.
 
-## Host source pin and runtime floor
+## Public SDK and packaging inputs
 
-`.kandev-sdk-ref` pins the Go and frontend SDK source to
-`570600439036e81f8e9e1c63f15c4abce8a6c846`. This host commit merged PR #3943,
-which adds `host.ui.Action` and `host.ui.ActionGroup`. The previous source pin,
-`f218880ecbaa3d019d65b5d84fca6bdf160eced6`, predates those exports.
+Current builds and recipes use public SDK `0.1.0` in Go and npm, with no sibling
+checkout or local SDK substitutions. Both published release records set the
+SDK-wide minimum host to `0.99.0`; API v1 remains supported. Run
+`npm ci --ignore-scripts`, `go mod tidy`, and `make sdk-check` before builds.
+See [the migration evidence](sdk-migration.md) for the exact public resolution,
+standalone tests, packaging, and minimum-host smoke results.
 
-CI, package builds, and release workflows read the same pin file. Do not use a
-floating branch for an SDK checkout. Keep the source pin separate from the
-runtime minimum in `manifest.yaml`. Kandev
-[`v0.97.0`](https://github.com/kdlbs/kandev/releases/tag/v0.97.0), published
-on 2026-10-04 at `e43881c7555372897b57ec51c705f1e05da43c40`, includes PR #3943.
-The official Linux x64 runtime archive was used to validate the template
-package in an isolated host, and `/health` reported `v0.97.0`. The source pin
-is 194 commits older and stays at the API/build contract commit; it is not a
-runtime release number. The existing `min_kandev_version: "0.86.0"` remains
-because the composer selects the legacy button when Action is absent. See PR
-#8 for the exact plugin archive digest and browser results.
+`.kandev-tooling-ref` independently pins backend-owned `plugin-pack` to
+`f0e2e774cfe2df8a0d15e4c21dea7b48580e38fb`. Only packaging needs this
+checkout, including `apps/backend` and root `pluginsdk`. Follow the README's
+packaging setup; the plugin module never imports the backend graph.
 
-## Go module tidy and dependency rationale
+## Historical validation before SDK publication
 
-Use Go `1.26.0` with this exact SDK source pin. From the plugin root, run
-`go mod tidy && git diff --exit-code -- go.mod go.sum`. Run it a second time
-with the same Go version and SDK checkout; it must produce no diff.
-
-For this baseline, tidy against SDK commit
-`570600439036e81f8e9e1c63f15c4abce8a6c846` updates the transitive Go modules:
-`golang.org/x/net` 0.56.0 to 0.58.0, `golang.org/x/sys` 0.46.0 to 0.48.0,
-`golang.org/x/text` 0.39.0 to 0.42.0,
-`google.golang.org/genproto/googleapis/rpc` from
-`v0.0.0-20260414002931-afd174a4e478` to
-`v0.0.0-20260526163538-3dc84a4a5aaa`, and `google.golang.org/grpc` 1.82.1 to
-1.83.1. Keep this reproducible tidy diff; do not add discretionary Go module
-upgrades to it. The gRPC change overlaps [open PR #7](https://github.com/kdlbs/kandev-plugin-template/pull/7).
-The `x/net` and `x/text` updates follow security work in [merged PR #3](https://github.com/kdlbs/kandev-plugin-template/pull/3), whose branch also pinned workflow actions. This overlap does not mean this baseline completes or replaces a security review.
-
-These are SDK build dependencies. Their versions do not establish runtime
-compatibility with a Kandev release. Keep the separate minimum-host check at
-the existing `0.86.0` floor and test the built artifact against each supported
-host surface.
-
-The manifest remains API v1. Its explicit `access: "public"` preserves the
-existing webhook behavior. At the pinned host commit, API v1 keeps the legacy
-public default and API v2 defaults to authenticated access. Do not change the
-API version as part of repository cleanup.
+The following Action guidance and stable-host results describe the prior
+source-pinned baseline (PR #8). The old `0.86.0` minimum and `v0.97.0` smoke
+results do not establish compatibility for current SDK builds. Use the current
+migration evidence and its commands for verification.
 
 ## Action ownership and supported slots
 
@@ -249,13 +224,11 @@ curl --fail --show-error http://127.0.0.1:18797/health
 ```
 
 Create a local Git-only fixture repository and a task with a composer; do not
-use external provider accounts or messages. With Playwright and Chromium
-available from the sibling Kandev checkout, return to the plugin template root
-and run:
+use external provider accounts or messages. With the locked Playwright dependency installed here and Chromium available,
+return to the plugin template root and run:
 
 ```sh
 cd /path/to/kandev-plugin-template
-KANDEV_CHECKOUT=../kandev \
 KANDEV_RELEASE_SOURCE="$SMOKE_TMP/source-v0.97.0" \
 KANDEV_SMOKE_HOST_LOG="$SMOKE_TMP/home/.kandev/logs/backend-logs.log" \
 KANDEV_URL=http://127.0.0.1:18797 \
@@ -305,11 +278,10 @@ both opened `/template`.
 
 ## CI and package checks
 
-The pull request workflows pin their Actions by commit and use the SDK pin
-above. CI installs locked npm dependencies with Node 24, checks Go module
-tidiness, checks formatting, runs `go vet` and tests, and audits recipe
-dependencies. A separate job tests the provider-free backend on the existing
-Kandev 0.86.0 floor.
+CI installs public locked npm and Go dependencies without a Kandev checkout,
+runs the installed SDK checker, checks Go module tidiness and formatting, runs
+vet and the actual backend/UI/recipe tests, and audits recipe dependencies.
+Build and release packaging jobs obtain the separate pinned tooling input.
 
 The build workflow compiles the host binary and verifies the five declared
 platform binaries. It checks the manifest, UI bundle, exact package file list,
@@ -326,11 +298,12 @@ internal file checksums and the SHA-256 checksum of the package archive.
 
 ## Local validation commands
 
-Create the sibling Kandev checkout at the source pin before you build. Use Go
-`1.26.0`, then run these commands from the plugin repository:
+Use Go `1.26` and Node 24, then run these commands from the plugin repository.
+Prepare the README's packaging-tool checkout only before the package targets:
 
 ```sh
 npm ci --ignore-scripts
+make sdk-check
 make check-format
 go mod tidy
 git diff --exit-code -- go.mod go.sum
