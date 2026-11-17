@@ -9,7 +9,8 @@
     "test:recipes": "vitest run recipes/source-control/ui",
     "typecheck:recipes": "tsc --project tsconfig.recipes.json --noEmit",
     "test:ui": "node --test tests/ui-action.test.js tests/smoke-http.test.js",
-    "test:host": "node scripts/smoke-minimum-host.mjs"
+    "test:host": "node scripts/smoke-minimum-host.mjs",
+    "test:file-viewer": "node --test recipes/file-viewer/register.test.js"
   },
   "devDependencies": {
     "@kdlbs/plugin-sdk": "0.1.0",

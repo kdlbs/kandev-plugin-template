@@ -42,6 +42,7 @@ test-recipes:
 
 test-ui:
 	npm run test:ui
+	npm run test:file-viewer
 
 test-package-verifier:
 	sh scripts/test-verify-package.sh

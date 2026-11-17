@@ -362,3 +362,9 @@ Migration validation and minimum-host smoke evidence are recorded in
 
 MIT — see [LICENSE](LICENSE). This template is meant to be copied and made your
 own; your resulting plugin can carry whatever license you choose.
+
+## File-viewer recipe
+
+The opt-in [file-viewer recipe](recipes/file-viewer/README.md) registers one
+component for opened files and interactive rich chat previews. It includes
+abort/disposal tests and requires the development file-viewer host contract.
