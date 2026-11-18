@@ -368,3 +368,12 @@ own; your resulting plugin can carry whatever license you choose.
 The opt-in [file-viewer recipe](recipes/file-viewer/README.md) registers one
 component for opened files and interactive rich chat previews. It includes
 abort/disposal tests and requires the development file-viewer host contract.
+
+### Dependency audit exception
+
+`make audit-recipes` checks all dependencies. Until 2026-12-18, it permits only
+GHSA-fc5q-39xc-vjpf in development dependencies and its transitive reports.
+As of 2026-11-18, picomatch has no patched release. Recipe tests use fixed,
+repository-owned glob patterns. These tools do not ship in the plugin archive.
+Production exposure, another high or critical advisory, an invalid audit result,
+or an expired exception fails the check. Remove the exception when a fix is available.

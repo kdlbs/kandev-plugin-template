@@ -10,9 +10,11 @@ export function registerFileViewer(registry, host, { id, render, errorKey }) {
       setFailed(false);
       return mountFilePreview(container.current, readBytes, render, () => setFailed(true));
     }, [file.generation, readBytes]);
-    return failed
-      ? h("p", { role: "alert" }, t(errorKey))
-      : h("div", { ref: container, style: { width: "100%", height: "100%", minHeight: 0 } });
+    return h("div", { style: { width: "100%", height: "100%", minHeight: 0 } },
+      failed ? h("p", { role: "alert" }, t(errorKey)) : null,
+      h("div", { ref: container, hidden: failed,
+        style: { width: "100%", height: "100%", minHeight: 0 } }),
+    );
   }
   registry.registerFileViewer({ id, Component: Viewer });
 }
