@@ -7,7 +7,7 @@
 # When you rename the plugin, update BIN and VERSION to match manifest.yaml's
 # id and version (PKG_OUT is derived from them).
 BIN := bin/kandev-plugin-template
-VERSION := 0.2.0
+VERSION := 0.3.0
 STAGE := .build/stage
 PKG_OUT := $(notdir $(BIN))-$(VERSION).tar.gz
 
@@ -57,10 +57,10 @@ audit-recipes:
 	npm audit --audit-level=high
 
 fmt:
-	gofmt -l .
+	gofmt -l server recipes
 
 check-format:
-	@test -z "$$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
+	@test -z "$$(gofmt -l server recipes)" || { echo "gofmt needed:"; gofmt -l server recipes; exit 1; }
 
 vet:
 	go vet ./server/... ./recipes/source-control/server/...

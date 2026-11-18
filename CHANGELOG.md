@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-11-06
+
+### Changed
+
+- ci: scope formatting checks to plugin sources (172c727)
+- Migrate template to public plugin SDK 0.1.0 (#11) (6b5bf80)
+
+
 ## [0.2.0] - 2026-10-05
 
 ### Changed
