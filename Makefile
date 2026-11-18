@@ -42,6 +42,7 @@ test-recipes:
 
 test-ui:
 	npm run test:ui
+	npm run test:file-viewer
 
 test-package-verifier:
 	sh scripts/test-verify-package.sh
@@ -53,7 +54,8 @@ typecheck-recipes:
 	npm run typecheck:recipes
 
 audit-recipes:
-	npm audit --audit-level=high
+	node --test scripts/audit-dependencies.test.mjs
+	node scripts/audit-dependencies.mjs
 
 fmt:
 	gofmt -l server recipes
